@@ -144,7 +144,16 @@ def training_loop(
     if rank == 0:
         print('Loading training set...')
     training_set = dnnlib.util.construct_class_by_name(**training_set_kwargs) # subclass of training.dataset.Dataset
-    training_set_sampler = misc.InfiniteSampler(dataset=training_set, rank=rank, num_replicas=num_gpus, seed=random_seed)
+#     training_set_sampler = misc.InfiniteSampler(dataset=training_set, rank=rank, num_replicas=num_gpus, seed=random_seed)
+    y_training_set=[]
+    for i in range(len(training_set)):
+    	y_training_set.append([k for k in range(10) if training_set[i][1][k]==1][0])
+    class_sample_count = np.array([len(np.where(y_training_set == t)[0]) for t in np.unique(y_training_set)])
+    weight = 1. / class_sample_count
+    samples_weight = np.array([weight[t] for t in y_training_set])
+    samples_weight = torch.from_numpy(samples_weight)
+    training_set_sampler = torch.utils.data.sampler.WeightedRandomSampler(samples_weight.type('torch.DoubleTensor'), len(training_set), replacement=True)
+    
     training_set_iterator = iter(torch.utils.data.DataLoader(dataset=training_set, sampler=training_set_sampler, batch_size=batch_size//num_gpus, **data_loader_kwargs))
     if rank == 0:
         print()
