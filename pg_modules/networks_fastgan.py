@@ -66,6 +66,9 @@ class FastganSynthesis(nn.Module):
         feat_64 = self.se_64(feat_4, self.feat_64(feat_32))
         feat_128 = self.se_128(feat_8,  self.feat_128(feat_64))
 
+        if self.img_resolution < 128:
+            feat_last = feat_32
+        
         if self.img_resolution >= 128:
             feat_last = feat_128
 
