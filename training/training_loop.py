@@ -31,6 +31,8 @@ from torch_utils.ops import grid_sample_gradfix
 
 import legacy
 from metrics import metric_main
+from pytorch_balanced_sampler import SamplerFactory
+from pytorch_balanced_sampler import DistributedSamplerWrapper
 
 #----------------------------------------------------------------------------
 
@@ -143,9 +145,17 @@ def training_loop(
     # Load training set.
     if rank == 0:
         print('Loading training set...')
+
     training_set = dnnlib.util.construct_class_by_name(**training_set_kwargs) # subclass of training.dataset.Dataset
-    training_set_sampler = misc.InfiniteSampler(dataset=training_set, rank=rank, num_replicas=num_gpus, seed=random_seed)
+    ## modified by Saeed
+    # training_set_sampler = misc.InfiniteSampler(dataset=training_set, rank=rank, num_replicas=num_gpus, seed=random_seed)
+    # set the iterator infinitely large number and wrap it with dist sampler
+    weighted_sampler = SamplerFactory().get(class_idxs=training_set.get_class_inds(), batch_size=batch_size,
+                                            n_batches=int(1e16), alpha=1.0, kind="fixed")
+    training_set_sampler = DistributedSamplerWrapper(weighted_sampler, num_replicas=num_gpus, rank=rank)
+    ##
     training_set_iterator = iter(torch.utils.data.DataLoader(dataset=training_set, sampler=training_set_sampler, batch_size=batch_size//num_gpus, **data_loader_kwargs))
+
     if rank == 0:
         print()
         print('Num images: ', len(training_set))

@@ -187,13 +187,14 @@ class ImageFolderDataset(Dataset):
                 self.fname = "dataset.json"
 
             with self._open_file(self.fname) as f:
-                labels = json.load(f)['labels']
-            if labels is None:
+                fnames = json.load(f)['labels']
+
+            if fnames is None:
                 self._all_fnames = {os.path.relpath(os.path.join(root, fname), start=self._path) for root, _dirs, files
                                     in os.walk(self._path) for fname in files}
             else:
                 # print(f"Reading images names from the {self.fname} file")
-                self._all_fnames = {p[0] for p in labels}
+                self._all_fnames = {p[0] for p in fnames}
             ##
         elif self._file_ext(self._path) == '.zip':
             self._type = 'zip'
@@ -267,5 +268,13 @@ class ImageFolderDataset(Dataset):
         labels = np.array(labels)
         labels = labels.astype({1: np.int64, 2: np.float32}[labels.ndim])
         return labels
+
+    ## added by Saeed
+    def get_class_inds(self):
+        labels = self._get_raw_labels()
+        class_idxs = []
+        for i in range(len(set(labels))):
+            class_idxs.append(np.where(labels == i)[0].tolist())
+        return class_idxs
 
 #----------------------------------------------------------------------------
