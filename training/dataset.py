@@ -178,7 +178,22 @@ class ImageFolderDataset(Dataset):
 
         if os.path.isdir(self._path):
             self._type = 'dir'
-            self._all_fnames = {os.path.relpath(os.path.join(root, fname), start=self._path) for root, _dirs, files in os.walk(self._path) for fname in files}
+            ## modified by Saeed
+            # self._all_fnames = {os.path.relpath(os.path.join(root, fname), start=self._path) for root, _dirs, files in os.walk(self._path) for fname in files}
+            if super_kwargs["fname"]:
+                self.fname = super_kwargs["fname"]
+            else:
+                self.fname = "dataset.json"
+
+            with self._open_file(self.fname) as f:
+                labels = json.load(f)['labels']
+            if labels is None:
+                self._all_fnames = {os.path.relpath(os.path.join(root, fname), start=self._path) for root, _dirs, files
+                                    in os.walk(self._path) for fname in files}
+            else:
+                # print(f"Reading images names from the {self.fname} file")
+                self._all_fnames = {p[0] for p in labels}
+            ##
         elif self._file_ext(self._path) == '.zip':
             self._type = 'zip'
             self._all_fnames = set(self._get_zipfile().namelist())
@@ -236,10 +251,13 @@ class ImageFolderDataset(Dataset):
         return image
 
     def _load_raw_labels(self):
-        fname = 'dataset.json'
-        if fname not in self._all_fnames:
+        ## modified by Saeed
+        # fname = 'dataset.json'
+        # if fname not in self._all_fnames:
+        if not os.path.exists(os.path.join(self._path, self.fname)):
             return None
-        with self._open_file(fname) as f:
+        ##
+        with self._open_file(self.fname) as f:
             labels = json.load(f)['labels']
         if labels is None:
             return None
