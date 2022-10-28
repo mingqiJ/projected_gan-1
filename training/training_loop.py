@@ -151,7 +151,7 @@ def training_loop(
     # training_set_sampler = misc.InfiniteSampler(dataset=training_set, rank=rank, num_replicas=num_gpus, seed=random_seed)
     # set the iterator infinitely large number and wrap it with dist sampler
     weighted_sampler = SamplerFactory().get(class_idxs=training_set.get_class_inds(), batch_size=batch_size,
-                                            n_batches=int(1e16), alpha=1.0, kind="fixed")
+                                            n_batches=int(1e6), alpha=1.0, kind="fixed")
     training_set_sampler = DistributedSamplerWrapper(weighted_sampler, num_replicas=num_gpus, rank=rank)
     ##
     training_set_iterator = iter(torch.utils.data.DataLoader(dataset=training_set, sampler=training_set_sampler, batch_size=batch_size//num_gpus, **data_loader_kwargs))

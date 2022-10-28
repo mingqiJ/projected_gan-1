@@ -21,7 +21,7 @@ def dataset_lt(args):
     filename = f"lt_{args.imf}"
     if args.reverse:
         filename += "_reverse"
-    with open(os.path.join(pwd, f"{filename}.json"), "w") as f:
+    with open(os.path.join(pwd, f"{filename}_{args.imf}.json"), "w") as f:
         json.dump(lt, f)
 
 
