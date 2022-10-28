@@ -100,6 +100,7 @@ class Dataset(torch.utils.data.Dataset):
         return self._raw_idx.size
 
     def __getitem__(self, idx):
+        print("HEREEEEEEEEEEE", idx)
         image = self._load_raw_image(self._raw_idx[idx])
         assert isinstance(image, np.ndarray)
         assert list(image.shape) == self.image_shape
@@ -276,5 +277,21 @@ class ImageFolderDataset(Dataset):
         for i in range(len(set(labels))):
             class_idxs.append(np.where(labels == i)[0].tolist())
         return class_idxs
+
+    ## added by Saeed
+    def get_class_counts(self):
+        labels = self._get_raw_labels()
+        class_counts = []
+        for i in range(len(set(labels))):
+            class_counts.append(len(np.where(labels == i)[0]))
+        return class_counts
+
+    ## added by Saeed
+    def get_sample_weights(self):
+        class_counts = self.get_class_counts()
+        weight = 1.0 / np.array(class_counts)
+        samples_weight = np.array([weight[c] for c in self._get_raw_labels()])
+        samples_weight = torch.from_numpy(samples_weight)
+        return samples_weight
 
 #----------------------------------------------------------------------------
