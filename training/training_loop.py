@@ -154,6 +154,7 @@ def training_loop(
     # weighted_sampler = SamplerFactory().get(class_idxs=training_set.get_class_inds(), batch_size=batch_size,
     #                                         n_batches=int(1e6), alpha=1.0, kind="fixed")
     samples_weight = training_set.get_sample_weights()
+    samples_weight = samples_weight ** 0.5
     weighted_sampler = WeightedRandomSampler(samples_weight.type('torch.DoubleTensor'), int(1e7), replacement=True)
     training_set_sampler = DistributedSamplerWrapper(weighted_sampler, num_replicas=num_gpus, rank=rank)
     ##
