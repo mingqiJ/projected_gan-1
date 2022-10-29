@@ -32,7 +32,7 @@ from torch_utils.ops import grid_sample_gradfix
 import legacy
 from metrics import metric_main
 from pytorch_balanced_sampler import SamplerFactory
-from pytorch_balanced_sampler import DistributedSamplerWrapper
+from pytorch_balanced_sampler import DistributedSamplerWrapper, ImbalancedDatasetSampler
 from torch.utils.data.sampler import WeightedRandomSampler
 #----------------------------------------------------------------------------
 
@@ -153,10 +153,12 @@ def training_loop(
     # set the iterator infinitely large number and wrap it with dist sampler
     # weighted_sampler = SamplerFactory().get(class_idxs=training_set.get_class_inds(), batch_size=batch_size,
     #                                         n_batches=int(1e6), alpha=1.0, kind="fixed")
-    samples_weight = training_set.get_sample_weights()
-    samples_weight = samples_weight ** 0.5
-    weighted_sampler = WeightedRandomSampler(samples_weight.type('torch.DoubleTensor'), int(1e7), replacement=True)
-    training_set_sampler = DistributedSamplerWrapper(weighted_sampler, num_replicas=num_gpus, rank=rank)
+    # samples_weight = training_set.get_sample_weights()
+    # samples_weight = samples_weight ** 0.5
+    # weighted_sampler = WeightedRandomSampler(samples_weight.type('torch.DoubleTensor'), int(1e7), replacement=True)
+
+    imbalanced_sampler = ImbalancedDatasetSampler(dataset=training_set)
+    training_set_sampler = DistributedSamplerWrapper(imbalanced_sampler, num_replicas=num_gpus, rank=rank)
     ##
 
     training_set_iterator = iter(torch.utils.data.DataLoader(dataset=training_set, sampler=training_set_sampler, batch_size=batch_size//num_gpus, **data_loader_kwargs))
