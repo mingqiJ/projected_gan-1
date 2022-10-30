@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 
+
 class ImbalancedDatasetSampler(torch.utils.data.sampler.Sampler):
 
     def __init__(self, dataset, indices=None, num_samples=None):
@@ -15,22 +16,11 @@ class ImbalancedDatasetSampler(torch.utils.data.sampler.Sampler):
             if num_samples is None else num_samples
 
         # distribution of classes in the dataset
-        label_to_count = [0] * len(np.unique(dataset.targets))
-        for idx in self.indices:
-            label = self._get_label(dataset, idx)
-            label_to_count[label] += 1
-
-        beta = 0.9999
-        effective_num = 1.0 - np.power(beta, label_to_count)
-        per_cls_weights = (1.0 - beta) / np.array(effective_num)
-
-        # weight for each sample
-        weights = [per_cls_weights[self._get_label(dataset, idx)]
-                   for idx in self.indices]
-        self.weights = torch.DoubleTensor(weights)
-
-    def _get_label(self, dataset, idx):
-        return dataset.targets[idx]
+        # label_to_count = [0] * len(np.unique(dataset._get_raw_labels))
+        # for idx in self.indices:
+        #     label = self. (dataset, idx)
+        #     label_to_count[label] += 1
+        self.weights = dataset.get_sample_weights_beta()
 
     def __iter__(self):
         return iter(torch.multinomial(self.weights, self.num_samples, replacement=True).tolist())

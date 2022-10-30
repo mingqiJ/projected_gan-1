@@ -157,7 +157,8 @@ def training_loop(
     # samples_weight = samples_weight ** 0.5
     # weighted_sampler = WeightedRandomSampler(samples_weight.type('torch.DoubleTensor'), int(1e7), replacement=True)
 
-    imbalanced_sampler = ImbalancedDatasetSampler(dataset=training_set)
+    samples_weight_beta = training_set.get_sample_weights()
+    imbalanced_sampler = WeightedRandomSampler(samples_weight_beta, int(1e7), replacement=True)
     training_set_sampler = DistributedSamplerWrapper(imbalanced_sampler, num_replicas=num_gpus, rank=rank)
     ##
 
