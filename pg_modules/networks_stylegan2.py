@@ -207,13 +207,12 @@ class MappingNetwork(torch.nn.Module):
             embed_features = 0
         if layer_features is None:
             layer_features = w_dim
-
         # added for transitional training
         features_list = [z_dim if z_dim else embed_features] + [layer_features] * (num_layers - 1) + [w_dim]    # Added by the authors
         if c_dim > 0:
             self.embed = FullyConnectedLayer(c_dim, embed_features)
             if z_dim:  # Added by the authors
-                self.proj_embedd = FullyConnectedLayer(embed_features, features_list[0], activation=activation, lr_multiplier=lr_multiplier)    # Added by the authors
+                self.proj_embedd = FullyConnectedLayer(embed_features, features_list[1], activation=activation, lr_multiplier=lr_multiplier)    # Added by the authors
                 self.register_buffer('transition', torch.zeros([]))  # Added by the authors
 
         for idx in range(num_layers):

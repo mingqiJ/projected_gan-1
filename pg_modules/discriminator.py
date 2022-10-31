@@ -175,6 +175,7 @@ class ProjectedDiscriminator(torch.nn.Module):
             resolutions=self.feature_network.RESOLUTIONS,
             **backbone_kwargs,
         )
+        self.register_buffer('transition', torch.zeros([]))  # Added by the authors
 
     def train(self, mode=True):
         self.feature_network = self.feature_network.train(False)
