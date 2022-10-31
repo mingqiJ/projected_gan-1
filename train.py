@@ -249,8 +249,6 @@ def main(**kwargs):
     c.t_start_kimg = opts.t_start_kimg
     c.t_end_kimg = opts.t_end_kimg
     is_transitional = opts.t_start_kimg < opts.t_end_kimg
-    c.G_kwargs.mapping_kwargs.is_transitional = is_transitional
-    c.D_kwargs.backbone_kwargs.is_transitional = is_transitional
     if opts.cond and is_transitional:
         desc += f'-trans:{opts.t_start_kimg}-{opts.t_end_kimg}'
 
@@ -272,6 +270,10 @@ def main(**kwargs):
     c.D_kwargs.backbone_kwargs.num_discs = 4
     c.D_kwargs.backbone_kwargs.separable = use_separable_discs
     c.D_kwargs.backbone_kwargs.cond = opts.cond
+
+    # added for transitional training
+    c.G_kwargs.mapping_kwargs.is_transitional = is_transitional
+    c.D_kwargs.backbone_kwargs.is_transitional = is_transitional
 
     # Launch.
     launch_training(c=c, desc=desc, outdir=opts.outdir, dry_run=opts.dry_run)

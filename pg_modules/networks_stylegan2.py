@@ -214,11 +214,12 @@ class MappingNetwork(torch.nn.Module):
         else:
             features_list = [z_dim + embed_features] + [layer_features] * (num_layers - 1) + [w_dim]
 
-            if c_dim > 0:
-                self.embed = FullyConnectedLayer(c_dim, embed_features)
-                if is_transitional:  # Added by the authors
-                    self.proj_embedd = FullyConnectedLayer(embed_features, features_list[1], activation=activation, lr_multiplier=lr_multiplier)    # Added by the authors
-                    self.register_buffer('transition', torch.zeros([]))  # Added by the authors
+        if c_dim > 0:
+            self.embed = FullyConnectedLayer(c_dim, embed_features)
+
+            if is_transitional:  # Added by the authors
+                self.proj_embedd = FullyConnectedLayer(embed_features, features_list[1], activation=activation, lr_multiplier=lr_multiplier)    # Added by the authors
+                self.register_buffer('transition', torch.zeros([]))  # Added by the authors
 
         for idx in range(num_layers):
             in_features = features_list[idx]
@@ -240,14 +241,16 @@ class MappingNetwork(torch.nn.Module):
                 misc.assert_shape(c, [None, self.c_dim])
                 y = normalize_2nd_moment(self.embed(c.to(torch.float32)))
                 # added for transitional training
-                if self.is_transitional and x is None:
-                    x = y
+                if self.is_transitional:
+                    if x is None:
+                        x = y
                 else:
                     x = torch.cat([x, y], dim=1) if x is not None else y
 
         # Main layers.
         for idx in range(self.num_layers):
             layer = getattr(self, f'fc{idx}')
+            print(x.shape)
             x = layer(x)
             # added for transitional training
             if self.is_transitional and (idx == 0):
