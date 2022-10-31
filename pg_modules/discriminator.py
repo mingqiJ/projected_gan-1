@@ -10,7 +10,7 @@ from pg_modules.diffaug import DiffAugment
 
 
 class SingleDisc(nn.Module):
-    def __init__(self, nc=None, ndf=None, start_sz=256, end_sz=8, head=None, separable=False, patch=False):
+    def __init__(self, nc=None, ndf=None, start_sz=256, end_sz=8, head=None, separable=False, patch=False, is_transitional=False):
         super().__init__()
         channel_dict = {4: 512, 8: 512, 16: 256, 32: 128, 64: 64, 128: 64,
                         256: 32, 512: 16, 1024: 8}
@@ -53,12 +53,9 @@ class SingleDisc(nn.Module):
 
 
 class SingleDiscCond(nn.Module):
-    def __init__(self, nc=None, ndf=None, start_sz=256, end_sz=8, head=None, separable=False, patch=False, c_dim=1000, cmap_dim=64, embedding_dim=128):
+    def __init__(self, nc=None, ndf=None, start_sz=256, end_sz=8, head=None, separable=False, patch=False, c_dim=1000, cmap_dim=64, embedding_dim=128, is_transitional=False):
         super().__init__()
         self.cmap_dim = cmap_dim
-
-        # added for transitional training
-        self.register_buffer('transition', torch.zeros([]))  # Added by the authors
 
         # midas channels
         channel_dict = {4: 512, 8: 512, 16: 256, 32: 128, 64: 64, 128: 64,
@@ -96,7 +93,10 @@ class SingleDiscCond(nn.Module):
         self.main = nn.Sequential(*layers)
 
         # added for transitional training
-        self.out_uc = conv2d(nfc[end_sz], 1, 4, 1, 0, bias=False)
+        self.is_transitional = is_transitional
+        if self.is_transitional:
+            self.register_buffer('transition', torch.zeros([]))  # Added by the authors
+            self.out_uc = conv2d(nfc[end_sz], 1, 4, 1, 0, bias=False)
 
         # additions for conditioning on class information
         self.cls = conv2d(nfc[end_sz], self.cmap_dim, 4, 1, 0, bias=False)
@@ -109,15 +109,15 @@ class SingleDiscCond(nn.Module):
     def forward(self, x, c):
         h = self.main(x)
 
-        # added for transitional training
-        out_uc = self.out_uc(h)
-
         # conditioning via projection
         out = self.cls(h)
         cmap = self.embed_proj(self.embed(c.argmax(1))).unsqueeze(-1).unsqueeze(-1)
         out = (out * cmap).sum(dim=1, keepdim=True) * (1 / np.sqrt(self.cmap_dim))
 
-        out = torch.cat((out_uc, out), dim=1)  # Added by the authors
+        # added for transitional training
+        if self.is_transitional:
+            out_uc = self.out_uc(h)
+            out = torch.cat((out_uc, out), dim=1)  # Added by the authors
 
         return out
 
@@ -132,6 +132,7 @@ class MultiScaleD(nn.Module):
         cond=0,
         separable=False,
         patch=False,
+        is_transitional=None,
         **kwargs,
     ):
         super().__init__()
@@ -146,7 +147,7 @@ class MultiScaleD(nn.Module):
         mini_discs = []
         for i, (cin, res) in enumerate(zip(self.disc_in_channels, self.disc_in_res)):
             start_sz = res if not patch else 16
-            mini_discs += [str(i), Disc(nc=cin, start_sz=start_sz, end_sz=8, separable=separable, patch=patch)],
+            mini_discs += [str(i), Disc(nc=cin, start_sz=start_sz, end_sz=8, separable=separable, patch=patch, is_transitional=is_transitional)],
         self.mini_discs = nn.ModuleDict(mini_discs)
 
     def forward(self, features, c):

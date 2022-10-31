@@ -189,7 +189,7 @@ def main(**kwargs):
     c.batch_gpu = opts.batch_gpu or opts.batch // opts.gpus
     c.G_kwargs.channel_base = opts.cbase
     c.G_kwargs.channel_max = opts.cmax
-    c.G_kwargs.mapping_kwargs.num_layers = 2
+    c.G_kwargs.mapping_kwargs.num_layers = opts.map_depth
     c.G_opt_kwargs.lr = (0.002 if opts.cfg == 'stylegan2' else 0.0025) if opts.glr is None else opts.glr
     c.D_opt_kwargs.lr = opts.dlr
     c.metrics = opts.metrics
@@ -248,8 +248,10 @@ def main(**kwargs):
     assert (opts.t_start_kimg >= 0 and opts.t_start_kimg <= opts.t_end_kimg)
     c.t_start_kimg = opts.t_start_kimg
     c.t_end_kimg = opts.t_end_kimg
-
-    if opts.cond and opts.t_start_kimg < opts.t_end_kimg:
+    is_transitional = opts.t_start_kimg < opts.t_end_kimg
+    c.G_kwargs.mapping_kwargs.is_transitional = is_transitional
+    c.D_kwargs.backbone_kwargs.is_transitional = is_transitional
+    if opts.cond and is_transitional:
         desc += f'-trans:{opts.t_start_kimg}-{opts.t_end_kimg}'
 
     if opts.desc is not None:

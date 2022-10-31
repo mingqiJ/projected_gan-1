@@ -192,6 +192,7 @@ class MappingNetwork(torch.nn.Module):
         activation      = 'lrelu',  # Activation function: 'relu', 'lrelu', etc.
         lr_multiplier   = 0.01,     # Learning rate multiplier for the mapping layers.
         w_avg_beta      = 0.998,    # Decay for tracking the moving average of W during training, None = do not track.
+        is_transitional = None
     ):
         super().__init__()
         self.z_dim = z_dim
@@ -200,7 +201,7 @@ class MappingNetwork(torch.nn.Module):
         self.num_ws = num_ws
         self.num_layers = num_layers
         self.w_avg_beta = w_avg_beta
-
+        self.is_transitional = is_transitional
         if embed_features is None:
             embed_features = w_dim
         if c_dim == 0:
@@ -208,12 +209,16 @@ class MappingNetwork(torch.nn.Module):
         if layer_features is None:
             layer_features = w_dim
         # added for transitional training
-        features_list = [z_dim if z_dim else embed_features] + [layer_features] * (num_layers - 1) + [w_dim]    # Added by the authors
-        if c_dim > 0:
-            self.embed = FullyConnectedLayer(c_dim, embed_features)
-            if z_dim:  # Added by the authors
-                self.proj_embedd = FullyConnectedLayer(embed_features, features_list[1], activation=activation, lr_multiplier=lr_multiplier)    # Added by the authors
-                self.register_buffer('transition', torch.zeros([]))  # Added by the authors
+        if is_transitional:
+            features_list = [z_dim if z_dim else embed_features] + [layer_features] * (num_layers - 1) + [w_dim]    # Added by the authors
+        else:
+            features_list = [z_dim + embed_features] + [layer_features] * (num_layers - 1) + [w_dim]
+
+            if c_dim > 0:
+                self.embed = FullyConnectedLayer(c_dim, embed_features)
+                if is_transitional:  # Added by the authors
+                    self.proj_embedd = FullyConnectedLayer(embed_features, features_list[1], activation=activation, lr_multiplier=lr_multiplier)    # Added by the authors
+                    self.register_buffer('transition', torch.zeros([]))  # Added by the authors
 
         for idx in range(num_layers):
             in_features = features_list[idx]
@@ -235,16 +240,17 @@ class MappingNetwork(torch.nn.Module):
                 misc.assert_shape(c, [None, self.c_dim])
                 y = normalize_2nd_moment(self.embed(c.to(torch.float32)))
                 # added for transitional training
-                if x is None:
+                if self.is_transitional and x is None:
                     x = y
-                # x = torch.cat([x, y], dim=1) if x is not None else y
+                else:
+                    x = torch.cat([x, y], dim=1) if x is not None else y
 
         # Main layers.
         for idx in range(self.num_layers):
             layer = getattr(self, f'fc{idx}')
             x = layer(x)
             # added for transitional training
-            if self.c_dim and self.z_dim and (idx == 0):
+            if self.is_transitional and (idx == 0):
                 x = x + self.transition * self.proj_embedd(y)
 
         # Update moving average of W.
