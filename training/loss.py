@@ -45,7 +45,7 @@ class ProjectedGANLoss(Loss):
         logits = self.D(img, c)
         return logits
 
-    def accumulate_gradients(self, phase, real_img, real_c, gen_z, gen_c, gain, cur_nimg):
+    def accumulate_gradients(self, phase, real_img, real_c, gen_z, gen_c, gain, cur_nimg, num_gpus=1):
         assert phase in ['Gmain', 'Greg', 'Gboth', 'Dmain', 'Dreg', 'Dboth']
         do_Gmain = (phase in ['Gmain', 'Gboth'])
         do_Dmain = (phase in ['Dmain', 'Dboth'])
@@ -61,6 +61,22 @@ class ProjectedGANLoss(Loss):
                 gen_img = self.run_G(gen_z, gen_c)
                 gen_logits = self.run_D(gen_img, gen_c, blur_sigma=blur_sigma)
                 loss_Gmain = (-gen_logits).mean()
+
+                # added for transitional training
+                gen_logits_c = None
+                if gen_logits.size(1) == 2:
+                    gen_logits_c = gen_logits[:, 1]
+                    gen_logits = gen_logits[:, 0]
+
+                if gen_logits_c is not None:
+                    training_stats.report('Loss/scores/fake_c', gen_logits_c)
+                    training_stats.report('Loss/signs/fake_c', gen_logits_c.sign())
+                    loss_Gmain_c = (-gen_logits_c).mean()
+
+                    if num_gpus > 1:
+                        loss_Gmain = loss_Gmain + self.D.module.transition * loss_Gmain_c
+                    else:
+                        loss_Gmain = loss_Gmain + self.D.transition * loss_Gmain_c
 
                 # Logging
                 training_stats.report('Loss/scores/fake', gen_logits)
@@ -78,6 +94,22 @@ class ProjectedGANLoss(Loss):
                 gen_logits = self.run_D(gen_img, gen_c, blur_sigma=blur_sigma)
                 loss_Dgen = (F.relu(torch.ones_like(gen_logits) + gen_logits)).mean()
 
+                # added for transitional training
+                gen_logits_c = None
+                if gen_logits.size(1) == 2:
+                    gen_logits_c = gen_logits[:, 1]
+                    gen_logits = gen_logits[:, 0]
+
+                if gen_logits_c is not None:
+                    training_stats.report('Loss/scores/fake_c', gen_logits_c)
+                    training_stats.report('Loss/signs/fake_c', gen_logits_c.sign())
+                    loss_Dgen_c = (F.relu(torch.ones_like(gen_logits_c) + gen_logits_c)).mean()
+
+                    if num_gpus > 1:
+                        loss_Dgen = loss_Dgen + self.D.module.transition * loss_Dgen_c
+                    else:
+                        loss_Dgen = loss_Dgen + self.D.transition * loss_Dgen_c
+
                 # Logging
                 training_stats.report('Loss/scores/fake', gen_logits)
                 training_stats.report('Loss/signs/fake', gen_logits.sign())
@@ -90,6 +122,21 @@ class ProjectedGANLoss(Loss):
                 real_img_tmp = real_img.detach().requires_grad_(False)
                 real_logits = self.run_D(real_img_tmp, real_c, blur_sigma=blur_sigma)
                 loss_Dreal = (F.relu(torch.ones_like(real_logits) - real_logits)).mean()
+
+                # added for transitional training
+                real_logits_c = None
+                if real_logits.size(1) == 2:
+                    real_logits_c = real_logits[:, 1]
+                    real_logits = real_logits[:, 0]
+
+                if real_logits_c is not None:
+                    training_stats.report('Loss/scores/real_c', real_logits_c)
+                    training_stats.report('Loss/signs/real_c', real_logits_c.sign())
+                    loss_Dreal_c = (F.relu(torch.ones_like(real_logits_c) - real_logits_c)).mean()
+                    if num_gpus > 1:
+                        loss_Dreal = loss_Dreal + self.D.module.transition * loss_Dreal_c
+                    else:
+                        loss_Dreal = loss_Dreal + self.D.transition * loss_Dreal_c
 
                 # Logging
                 training_stats.report('Loss/scores/real', real_logits)

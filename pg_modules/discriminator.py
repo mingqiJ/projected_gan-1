@@ -57,6 +57,9 @@ class SingleDiscCond(nn.Module):
         super().__init__()
         self.cmap_dim = cmap_dim
 
+        # added for transitional training
+        self.register_buffer('transition', torch.zeros([]))  # Added by the authors
+
         # midas channels
         channel_dict = {4: 512, 8: 512, 16: 256, 32: 128, 64: 64, 128: 64,
                         256: 32, 512: 16, 1024: 8}
@@ -92,6 +95,9 @@ class SingleDiscCond(nn.Module):
             start_sz = start_sz // 2
         self.main = nn.Sequential(*layers)
 
+        # added for transitional training
+        self.out_uc = conv2d(nfc[end_sz], 1, 4, 1, 0, bias=False)
+
         # additions for conditioning on class information
         self.cls = conv2d(nfc[end_sz], self.cmap_dim, 4, 1, 0, bias=False)
         self.embed = nn.Embedding(num_embeddings=c_dim, embedding_dim=embedding_dim)
@@ -102,11 +108,16 @@ class SingleDiscCond(nn.Module):
 
     def forward(self, x, c):
         h = self.main(x)
-        out = self.cls(h)
+
+        # added for transitional training
+        out_uc = self.out_uc(h)
 
         # conditioning via projection
+        out = self.cls(h)
         cmap = self.embed_proj(self.embed(c.argmax(1))).unsqueeze(-1).unsqueeze(-1)
         out = (out * cmap).sum(dim=1, keepdim=True) * (1 / np.sqrt(self.cmap_dim))
+
+        out = torch.cat((out_uc, out), dim=1)  # Added by the authors
 
         return out
 

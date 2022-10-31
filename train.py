@@ -123,6 +123,7 @@ def parse_comma_separated_list(s):
     return s.split(',')
 
 
+
 @click.command()
 
 # Required.
@@ -132,9 +133,13 @@ def parse_comma_separated_list(s):
 @click.option('--gpus',         help='Number of GPUs to use', metavar='INT',                    type=click.IntRange(min=1), required=True)
 @click.option('--batch',        help='Total batch size', metavar='INT',                         type=click.IntRange(min=1), required=True)
 
+# added by Saeed
+@click.option('--fname',        help='Dataset json file to load images', metavar='DIR',         type=str)
+@click.option('--t_start_kimg', help='start kimg for progressive conditioning',                 type=int, metavar='INT')
+@click.option('--t_end_kimg',   help='end kimg for progressive conditioning',                   type=int, metavar='INT')
+# @click.option('--class_adaptive_aug',       help='class balancing data augmentation', metavar='BOOL',  type=bool, default=False)
 
 # Optional features.
-@click.option('--fname',        help='Dataset json file to load images', metavar='DIR',         type=str)
 @click.option('--cond',         help='Train conditional model', metavar='BOOL',                 type=bool, default=False, show_default=True)
 @click.option('--mirror',       help='Enable dataset x-flips', metavar='BOOL',                  type=bool, default=False, show_default=True)
 @click.option('--resume',       help='Resume from given network pickle', metavar='[PATH|URL]',  type=str)
@@ -232,6 +237,21 @@ def main(**kwargs):
 
     # Description string.
     desc = f'{opts.cfg:s}-{dataset_name:s}-gpus{c.num_gpus:d}-batch{c.batch_size:d}'
+
+    # added for transitional training
+    if opts.t_start_kimg is None:
+        opts.t_start_kimg = 0
+    if opts.t_end_kimg is None:
+        opts.t_end_kimg = 0
+    assert isinstance(opts.t_start_kimg, int)
+    assert isinstance(opts.t_end_kimg, int)
+    assert (opts.t_start_kimg >= 0 and opts.t_start_kimg <= opts.t_end_kimg)
+    c.t_start_kimg = opts.t_start_kimg
+    c.t_end_kimg = opts.t_end_kimg
+
+    if opts.cond and opts.t_start_kimg < opts.t_end_kimg:
+        desc += f'-trans:{opts.t_start_kimg}-{opts.t_end_kimg}'
+
     if opts.desc is not None:
         desc += f'-{opts.desc}'
 

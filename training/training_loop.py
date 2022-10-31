@@ -124,6 +124,8 @@ def training_loop(
     abort_fn                = None,     # Callback function for determining whether to abort training. Must return consistent results across ranks.
     progress_fn             = None,     # Callback function for updating training progress. Called for all ranks.
     restart_every           = -1,       # Time interval in seconds to exit code
+    t_start_kimg            = None,
+    t_end_kimg              = None,
 ):
     # Initialize.
     start_time = time.time()
@@ -149,7 +151,8 @@ def training_loop(
     training_set = dnnlib.util.construct_class_by_name(**training_set_kwargs) # subclass of training.dataset.Dataset
 
     ## modified by Saeed
-    # training_set_sampler = misc.InfiniteSampler(dataset=training_set, rank=rank, num_replicas=num_gpus, seed=random_seed)
+    training_set_sampler = misc.InfiniteSampler(dataset=training_set, rank=rank, num_replicas=num_gpus, seed=random_seed)
+
     # set the iterator infinitely large number and wrap it with dist sampler
     # weighted_sampler = SamplerFactory().get(class_idxs=training_set.get_class_inds(), batch_size=batch_size,
     #                                         n_batches=int(1e6), alpha=1.0, kind="fixed")
@@ -157,9 +160,9 @@ def training_loop(
     # samples_weight = samples_weight ** 0.5
     # weighted_sampler = WeightedRandomSampler(samples_weight.type('torch.DoubleTensor'), int(1e7), replacement=True)
 
-    samples_weight_beta = training_set.get_sample_weights()
-    imbalanced_sampler = WeightedRandomSampler(samples_weight_beta, int(1e7), replacement=True)
-    training_set_sampler = DistributedSamplerWrapper(imbalanced_sampler, num_replicas=num_gpus, rank=rank)
+    # samples_weight_beta = training_set.get_sample_weights()
+    # imbalanced_sampler = WeightedRandomSampler(samples_weight_beta, int(1e7), replacement=True)
+    # training_set_sampler = DistributedSamplerWrapper(training_set_sampler, num_replicas=num_gpus, rank=rank)
     ##
 
     training_set_iterator = iter(torch.utils.data.DataLoader(dataset=training_set, sampler=training_set_sampler, batch_size=batch_size//num_gpus, **data_loader_kwargs))
@@ -290,6 +293,7 @@ def training_loop(
         progress_fn(cur_nimg // 1000, total_kimg)
     if hasattr(loss, 'pl_mean'):
         loss.pl_mean.copy_(__PL_MEAN__)
+    old_nimg = 0
     while True:
 
         with torch.autograd.profiler.record_function('data_fetch'):
@@ -317,7 +321,7 @@ def training_loop(
                 phase.module.feature_network.requires_grad_(False)
 
             for real_img, real_c, gen_z, gen_c in zip(phase_real_img, phase_real_c, phase_gen_z, phase_gen_c):
-                loss.accumulate_gradients(phase=phase.name, real_img=real_img, real_c=real_c, gen_z=gen_z, gen_c=gen_c, gain=phase.interval, cur_nimg=cur_nimg)
+                loss.accumulate_gradients(phase=phase.name, real_img=real_img, real_c=real_c, gen_z=gen_z, gen_c=gen_c, gain=phase.interval, cur_nimg=cur_nimg, num_gpus=num_gpus)
             phase.module.requires_grad_(False)
 
             # Update weights.
@@ -353,7 +357,18 @@ def training_loop(
         cur_nimg += batch_size
         batch_idx += 1
 
-        # Perform maintenance tasks once per tick.
+        # added for transitional training
+        # log and update the transition value
+        if training_set_kwargs.use_labels and t_start_kimg < t_end_kimg:
+            training_stats.report0('Progress/D/transition', D.transition.cpu())
+            training_stats.report0('Progress/G/transition', G.mapping.transition.cpu())
+            if (cur_nimg // 1000) >= t_start_kimg:
+                m = 1 / (t_end_kimg - t_start_kimg + 1e-7)
+                G.mapping.transition = torch.clip(G.mapping.transition + m * (cur_nimg - old_nimg) / 1000, max=1.0)
+                D.transition = torch.clip(D.transition + m * (cur_nimg - old_nimg) / 1000, max=1.0)
+            old_nimg = cur_nimg
+
+    # Perform maintenance tasks once per tick.
         done = (cur_nimg >= total_kimg * 1000)
         if (not done) and (cur_tick != 0) and (cur_nimg < tick_start_nimg + kimg_per_tick * 1000):
             continue
