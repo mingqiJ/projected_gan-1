@@ -137,7 +137,7 @@ def parse_comma_separated_list(s):
 @click.option('--fname',        help='Dataset json file to load images', metavar='DIR',         type=str)
 @click.option('--t_start_kimg', help='start kimg for progressive conditioning',                 type=int, metavar='INT')
 @click.option('--t_end_kimg',   help='end kimg for progressive conditioning',                   type=int, metavar='INT')
-# @click.option('--class_adaptive_aug',       help='class balancing data augmentation', metavar='BOOL',  type=bool, default=False)
+@click.option('--cls_ada_aug',  help='class balancing data augmentation',           type=bool,metavar='BOOL', default=False)
 
 # Optional features.
 @click.option('--cond',         help='Train conditional model', metavar='BOOL',                 type=bool, default=False, show_default=True)
@@ -224,7 +224,7 @@ def main(**kwargs):
     if opts.resume is not None:
         c.resume_pkl = opts.resume
         c.ema_rampup = None  # Disable EMA rampup.
-
+        c.cls_ada_aug_kimg = 100
     # Restart.
     c.restart_every = opts.restart_every
 
@@ -252,6 +252,10 @@ def main(**kwargs):
     if opts.cond and is_transitional:
         desc += f'-trans:{opts.t_start_kimg}-{opts.t_end_kimg}'
 
+    # added for class adaptive augmentation
+    if opts.cls_ada_aug:
+        desc += f'--cls-ada-aug'
+
     if opts.desc is not None:
         desc += f'-{opts.desc}'
 
@@ -274,6 +278,9 @@ def main(**kwargs):
     # added for transitional training
     c.G_kwargs.mapping_kwargs.is_transitional = is_transitional
     c.D_kwargs.backbone_kwargs.is_transitional = is_transitional
+
+    # added for class adaptive augmentation
+    c.cls_ada_aug = opts.cls_ada_aug
 
     # Launch.
     launch_training(c=c, desc=desc, outdir=opts.outdir, dry_run=opts.dry_run)

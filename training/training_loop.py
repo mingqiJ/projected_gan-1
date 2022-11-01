@@ -124,8 +124,11 @@ def training_loop(
     abort_fn                = None,     # Callback function for determining whether to abort training. Must return consistent results across ranks.
     progress_fn             = None,     # Callback function for updating training progress. Called for all ranks.
     restart_every           = -1,       # Time interval in seconds to exit code
-    t_start_kimg            = None,
-    t_end_kimg              = None,
+    t_start_kimg            = 0,
+    t_end_kimg              = 0,
+    cls_ada_aug             = False,
+    # cls_ada_aug_interval    = 4,
+    # cls_ada_aug_kimg        = 500
 ):
     # Initialize.
     start_time = time.time()
@@ -152,7 +155,6 @@ def training_loop(
 
     ## modified by Saeed
     training_set_sampler = misc.InfiniteSampler(dataset=training_set, rank=rank, num_replicas=num_gpus, seed=random_seed)
-
     # set the iterator infinitely large number and wrap it with dist sampler
     # weighted_sampler = SamplerFactory().get(class_idxs=training_set.get_class_inds(), batch_size=batch_size,
     #                                         n_batches=int(1e6), alpha=1.0, kind="fixed")
@@ -181,6 +183,13 @@ def training_loop(
     G = dnnlib.util.construct_class_by_name(**G_kwargs, **common_kwargs).train().requires_grad_(False).to(device) # subclass of torch.nn.Module
     D = dnnlib.util.construct_class_by_name(**D_kwargs, **common_kwargs).train().requires_grad_(False).to(device) # subclass of torch.nn.Module
     G_ema = copy.deepcopy(G).eval()
+
+    # added for class adaptive augmentation
+    if common_kwargs['c_dim'] > 0:
+        if cls_ada_aug:
+            D.cls_ada_aug_p.copy_(training_set.get_cls_ada_aug_p().type('torch.DoubleTensor').to(device))
+        else:
+            D.cls_ada_aug_p.copy_(torch.ones(common_kwargs['c_dim']).type('torch.DoubleTensor').to(device))
 
     # Check for existing checkpoint
     ckpt_pkl = None

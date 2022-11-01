@@ -305,5 +305,16 @@ class ImageFolderDataset(Dataset):
         samples_weight = torch.DoubleTensor(samples_weight)
         return samples_weight
 
+    ## added by Saeed
+    def get_cls_ada_aug_p(self):
+        eps = 1e-12
+        class_counts = self.get_class_counts()
+        class_counts = np.array(class_counts) ** 0.15
+        p = 1.0 / class_counts
+        p /= (p.max() + eps)
+        return torch.from_numpy(p)
+
+
+
 
 #----------------------------------------------------------------------------

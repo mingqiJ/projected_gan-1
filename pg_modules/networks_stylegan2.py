@@ -250,7 +250,6 @@ class MappingNetwork(torch.nn.Module):
         # Main layers.
         for idx in range(self.num_layers):
             layer = getattr(self, f'fc{idx}')
-            print(x.shape)
             x = layer(x)
             # added for transitional training
             if self.is_transitional and (idx == 0):
