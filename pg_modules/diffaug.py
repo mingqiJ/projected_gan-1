@@ -8,12 +8,13 @@ import torch.nn.functional as F
 
 def DiffAugment(x, policy='', channels_first=True, p=None, c=None):
     probs = torch.matmul(c, p)
-    mask = torch.rand(probs.size(0), dtype=probs.dtype, device=probs.device) <= probs
+    # mask = torch.rand(probs.size(0), dtype=probs.dtype, device=probs.device) <= probs
     if policy:
         if not channels_first:
             x = x.permute(0, 3, 1, 2)
         for pol in policy.split(','):
             for f in AUGMENT_FNS[pol]:
+                mask = torch.rand(probs.size(0), dtype=probs.dtype, device=probs.device) <= probs
                 x = f(x, mask)
         if not channels_first:
             x = x.permute(0, 2, 3, 1)
