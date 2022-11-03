@@ -278,8 +278,9 @@ def main(**kwargs):
     c.D_kwargs.backbone_kwargs.cond = opts.cond
 
     # added for transitional training
-    c.G_kwargs.mapping_kwargs.is_transitional = is_transitional
-    c.D_kwargs.backbone_kwargs.is_transitional = is_transitional
+    if opts.cfg == 'stylegan2':
+        c.G_kwargs.mapping_kwargs.is_transitional = is_transitional
+        c.D_kwargs.backbone_kwargs.is_transitional = is_transitional
 
     # added for class adaptive augmentation
     c.cls_ada_aug = opts.cls_ada_aug
