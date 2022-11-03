@@ -225,7 +225,8 @@ def compute_feature_stats_for_dataset(opts, detector_url, detector_kwargs, rel_l
         if flag:
             return FeatureStats.load(cache_file)
 
-    print('Calculating the stats for this dataset the first time\n')
+    print(f'Calculating the stats for this dataset the first time suing {opts.dataset_kwargs.fname} file\n')
+    print(f'Dataset len --> {len(dataset)}\n')
     print(f'Saving them to {cache_file}')
 
     # Initialize.

@@ -5,6 +5,7 @@
 import torch
 import torch.nn.functional as F
 
+
 def DiffAugment(x, policy='', channels_first=True, p=None, c=None):
     probs = torch.matmul(c, p)
     mask = torch.rand(probs.size(0), dtype=probs.dtype, device=probs.device) <= probs

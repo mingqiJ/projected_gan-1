@@ -38,6 +38,9 @@ def calc_metric(metric, **kwargs): # See metric_utils.MetricOptions for the full
     assert is_valid_metric(metric)
     opts = metric_utils.MetricOptions(**kwargs)
 
+    # added by Saeed
+    opts.dataset_kwargs.update(fname="dataset.json")
+
     # Calculate.
     start_time = time.time()
     results = _metric_dict[metric](opts)
