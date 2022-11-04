@@ -146,6 +146,7 @@ def training_loop(
     __BATCH_IDX__ = torch.tensor(0, dtype=torch.long, device=device)
     __PL_MEAN__ = torch.zeros([], device=device)
     best_fid = 9999
+    best_recall = 9999
 
     # Load training set.
     if rank == 0:
@@ -210,6 +211,7 @@ def training_loop(
             __BATCH_IDX__ = resume_data['progress']['batch_idx'].to(device)
             __PL_MEAN__ = resume_data['progress'].get('pl_mean', torch.zeros([])).to(device)
             best_fid = resume_data['progress']['best_fid']       # only needed for rank == 0
+            best_recall = resume_data['progress']['best_recall']       # only needed for rank == 0
 
         del resume_data
 
@@ -437,13 +439,15 @@ def training_loop(
         # Save Checkpoint if needed
         if (rank == 0) and (restart_every > 0) and (network_snapshot_ticks is not None) and (
                 done or cur_tick % network_snapshot_ticks == 0):
-            snapshot_pkl = misc.get_ckpt_path(run_dir)
+            # snapshot_pkl = misc.get_ckpt_path(run_dir)
+            snapshot_pkl = os.path.join(run_dir, f'network-snapshot-{cur_nimg//1000:06d}.pkl')
             # save as tensors to avoid error for multi GPU
             snapshot_data['progress'] = {
                 'cur_nimg': torch.LongTensor([cur_nimg]),
                 'cur_tick': torch.LongTensor([cur_tick]),
                 'batch_idx': torch.LongTensor([batch_idx]),
                 'best_fid': best_fid,
+                'best_recall': best_recall,
             }
             if hasattr(loss, 'pl_mean'):
                 snapshot_data['progress']['pl_mean'] = loss.pl_mean.cpu()
@@ -464,16 +468,28 @@ def training_loop(
                 stats_metrics.update(result_dict.results)
 
             # save best fid ckpt
-            snapshot_pkl = os.path.join(run_dir, f'best_model.pkl')
-            cur_nimg_txt = os.path.join(run_dir, f'best_nimg.txt')
+            # added best recall
+            snapshot_pkl_fid = os.path.join(run_dir, f'best_model_recall.pkl')
+            snapshot_pkl_recall = os.path.join(run_dir, f'best_model_recall.pkl')
+            cur_nimg_txt_fid = os.path.join(run_dir, f'best_nimg_fid.txt')
+            cur_nimg_txt_recall = os.path.join(run_dir, f'best_nimg_recall.txt')
             if rank == 0:
                 if 'fid50k_full' in stats_metrics and stats_metrics['fid50k_full'] < best_fid:
                     best_fid = stats_metrics['fid50k_full']
 
-                    with open(snapshot_pkl, 'wb') as f:
+                    with open(snapshot_pkl_fid, 'wb') as f:
                         dill.dump(snapshot_data, f)
                     # save curr iteration number (directly saving it to pkl leads to problems with multi GPU)
-                    with open(cur_nimg_txt, 'w') as f:
+                    with open(cur_nimg_txt_fid, 'w') as f:
+                        f.write(str(cur_nimg))
+
+                if 'pr50k3_full' in stats_metrics and stats_metrics['pr50k3_full_recall'] < best_recall:
+                    best_recall = stats_metrics['pr50k3_full_recall']
+
+                    with open(snapshot_pkl_recall, 'wb') as f:
+                        dill.dump(snapshot_data, f)
+                    # save curr iteration number (directly saving it to pkl leads to problems with multi GPU)
+                    with open(cur_nimg_txt_recall, 'w') as f:
                         f.write(str(cur_nimg))
 
         del snapshot_data # conserve memory
