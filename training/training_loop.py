@@ -188,9 +188,9 @@ def training_loop(
     # added for class adaptive augmentation
     if common_kwargs['c_dim'] > 0:
         if cls_ada_aug:
-            D.cls_ada_aug_p.copy_(training_set.get_cls_ada_aug_p().type('torch.DoubleTensor').to(device))
+            D.cls_ada_aug_p = training_set.get_cls_ada_aug_p().type('torch.DoubleTensor').to(device)
         else:
-            D.cls_ada_aug_p.copy_(torch.ones(common_kwargs['c_dim']).type('torch.DoubleTensor').to(device))
+            D.cls_ada_aug_p = None
 
     # Check for existing checkpoint
     ckpt_pkl = None
