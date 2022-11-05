@@ -286,11 +286,14 @@ class ImageFolderDataset(Dataset):
         return class_counts
 
     ## added by Saeed
-    def get_sample_weights(self):
+    def get_sample_weights(self, exp_val=1.0):
+        eps = 1e-12
         class_counts = self.get_class_counts()
-        weight = 1.0 / np.array(class_counts)
+        class_counts = np.array(class_counts) ** exp_val
+        weight = 1.0 / class_counts
+        weight /= (weight.max() + eps)
         samples_weight = np.array([weight[c] for c in self._get_raw_labels()])
-        samples_weight = torch.from_numpy(samples_weight)
+        samples_weight = torch.from_numpy(samples_weight).type('torch.DoubleTensor')
         return samples_weight
 
     ## added by Saeed
@@ -299,7 +302,7 @@ class ImageFolderDataset(Dataset):
         beta = 0.9999
         effective_num = 1.0 - np.power(beta, class_counts)
         per_cls_weights = (1.0 - beta) / np.array(effective_num)
-
+        print(per_cls_weights/per_cls_weights.max())
         # weight for each sample
         samples_weight = [per_cls_weights[c] for c in self._get_raw_labels()]
         samples_weight = torch.DoubleTensor(samples_weight)

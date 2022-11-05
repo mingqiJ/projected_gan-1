@@ -226,7 +226,7 @@ def main(**kwargs):
     if opts.resume is not None:
         c.resume_pkl = opts.resume
         c.ema_rampup = None  # Disable EMA rampup.
-        c.cls_ada_aug_kimg = 100
+
     # Restart.
     c.restart_every = opts.restart_every
 

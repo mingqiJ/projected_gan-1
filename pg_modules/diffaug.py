@@ -6,33 +6,28 @@ import torch
 import torch.nn.functional as F
 
 
-def DiffAugment(x, policy='', channels_first=True, p=None, c=None):
-    if p:
-        probs = torch.matmul(c, p)
+def DiffAugment(x, policy='', channels_first=True):
+
     if policy:
         if not channels_first:
             x = x.permute(0, 3, 1, 2)
         for pol in policy.split(','):
             for f in AUGMENT_FNS[pol]:
-                if p:
-                    mask = torch.rand(probs.size(0), dtype=probs.dtype, device=probs.device) <= probs
-                else:
-                    mask = None
-                x = f(x, mask)
+                x = f(x)
         if not channels_first:
             x = x.permute(0, 2, 3, 1)
         x = x.contiguous()
     return x
 
 
-def rand_brightness(x, mask):
+def rand_brightness(x, mask=None):
     out = x + (torch.rand(x.size(0), 1, 1, 1, dtype=x.dtype, device=x.device) - 0.5)
     if mask:
         x[mask] = out[mask]
     return x
 
 
-def rand_saturation(x, mask):
+def rand_saturation(x, mask=None):
     x_mean = x.mean(dim=1, keepdim=True)
     out = (x - x_mean) * (torch.rand(x.size(0), 1, 1, 1, dtype=x.dtype, device=x.device) * 2) + x_mean
     if mask:
@@ -42,7 +37,7 @@ def rand_saturation(x, mask):
         return out
 
 
-def rand_contrast(x, mask):
+def rand_contrast(x, mask=None):
     x_mean = x.mean(dim=[1, 2, 3], keepdim=True)
     out = (x - x_mean) * (torch.rand(x.size(0), 1, 1, 1, dtype=x.dtype, device=x.device) + 0.5) + x_mean
     if mask:
@@ -52,7 +47,7 @@ def rand_contrast(x, mask):
         return out
 
 
-def rand_translation(x, mask, ratio=0.125):
+def rand_translation(x, mask=None, ratio=0.125):
     shift_x, shift_y = int(x.size(2) * ratio + 0.5), int(x.size(3) * ratio + 0.5)
     translation_x = torch.randint(-shift_x, shift_x + 1, size=[x.size(0), 1, 1], device=x.device)
     translation_y = torch.randint(-shift_y, shift_y + 1, size=[x.size(0), 1, 1], device=x.device)
@@ -72,7 +67,7 @@ def rand_translation(x, mask, ratio=0.125):
         return out
 
 
-def rand_cutout(x, mask, ratio=0.2):
+def rand_cutout(x, mask=None, ratio=0.2):
     cutout_size = int(x.size(2) * ratio + 0.5), int(x.size(3) * ratio + 0.5)
     offset_x = torch.randint(0, x.size(2) + (1 - cutout_size[0] % 2), size=[x.size(0), 1, 1], device=x.device)
     offset_y = torch.randint(0, x.size(3) + (1 - cutout_size[1] % 2), size=[x.size(0), 1, 1], device=x.device)

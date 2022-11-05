@@ -178,7 +178,6 @@ class ProjectedDiscriminator(torch.nn.Module):
             **backbone_kwargs,
         )
         self.register_buffer('transition', torch.zeros([]))  # Added by the authors
-        self.register_buffer('cls_ada_aug_p', torch.ones(c_dim))  # Added by the authors
 
     def train(self, mode=True):
         self.feature_network = self.feature_network.train(False)
@@ -190,7 +189,7 @@ class ProjectedDiscriminator(torch.nn.Module):
 
     def forward(self, x, c):
         if self.diffaug:
-            x = DiffAugment(x, policy='color,translation,cutout', p=self.cls_ada_aug_p, c=c)
+            x = DiffAugment(x, policy='color,translation,cutout')
 
         if self.interp224:
             x = F.interpolate(x, 224, mode='bilinear', align_corners=False)

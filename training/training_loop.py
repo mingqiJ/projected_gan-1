@@ -155,18 +155,12 @@ def training_loop(
     training_set = dnnlib.util.construct_class_by_name(**training_set_kwargs) # subclass of training.dataset.Dataset
 
     ## modified by Saeed
-    training_set_sampler = misc.InfiniteSampler(dataset=training_set, rank=rank, num_replicas=num_gpus, seed=random_seed)
-    # set the iterator infinitely large number and wrap it with dist sampler
-    # weighted_sampler = SamplerFactory().get(class_idxs=training_set.get_class_inds(), batch_size=batch_size,
-    #                                         n_batches=int(1e6), alpha=1.0, kind="fixed")
-    # samples_weight = training_set.get_sample_weights()
-    # samples_weight = samples_weight ** 0.5
-    # weighted_sampler = WeightedRandomSampler(samples_weight.type('torch.DoubleTensor'), int(1e7), replacement=True)
+    # training_set_sampler = misc.InfiniteSampler(dataset=training_set, rank=rank, num_replicas=num_gpus, seed=random_seed)
 
-    # samples_weight_beta = training_set.get_sample_weights()
-    # imbalanced_sampler = WeightedRandomSampler(samples_weight_beta, int(1e7), replacement=True)
-    # training_set_sampler = DistributedSamplerWrapper(training_set_sampler, num_replicas=num_gpus, rank=rank)
-    ##
+    # set the iterator infinitely large number and wrap it with dist sampler
+    samples_weight = training_set.get_sample_weights(exp_val=0.15)
+    weighted_sampler = WeightedRandomSampler(samples_weight, num_samples=int(total_kimg*1000), replacement=True)
+    training_set_sampler = DistributedSamplerWrapper(weighted_sampler, num_replicas=num_gpus, rank=rank)
 
     training_set_iterator = iter(torch.utils.data.DataLoader(dataset=training_set, sampler=training_set_sampler, batch_size=batch_size//num_gpus, **data_loader_kwargs))
 
@@ -184,13 +178,6 @@ def training_loop(
     G = dnnlib.util.construct_class_by_name(**G_kwargs, **common_kwargs).train().requires_grad_(False).to(device) # subclass of torch.nn.Module
     D = dnnlib.util.construct_class_by_name(**D_kwargs, **common_kwargs).train().requires_grad_(False).to(device) # subclass of torch.nn.Module
     G_ema = copy.deepcopy(G).eval()
-
-    # added for class adaptive augmentation
-    if common_kwargs['c_dim'] > 0:
-        if cls_ada_aug:
-            D.cls_ada_aug_p = training_set.get_cls_ada_aug_p().type('torch.DoubleTensor').to(device)
-        else:
-            D.cls_ada_aug_p = None
 
     # Check for existing checkpoint
     ckpt_pkl = None
