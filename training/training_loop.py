@@ -146,7 +146,7 @@ def training_loop(
     __BATCH_IDX__ = torch.tensor(0, dtype=torch.long, device=device)
     __PL_MEAN__ = torch.zeros([], device=device)
     best_fid = 9999
-    best_recall = 9999
+    best_recall = -9999
 
     # Load training set.
     if rank == 0:
@@ -483,7 +483,7 @@ def training_loop(
                     with open(cur_nimg_txt_fid, 'w') as f:
                         f.write(str(cur_nimg))
 
-                if 'pr50k3_full' in stats_metrics and stats_metrics['pr50k3_full_recall'] < best_recall:
+                if 'pr50k3_full' in stats_metrics and stats_metrics['pr50k3_full_recall'] > best_recall:
                     best_recall = stats_metrics['pr50k3_full_recall']
 
                     with open(snapshot_pkl_recall, 'wb') as f:
