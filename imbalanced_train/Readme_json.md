@@ -1,5 +1,6 @@
 ### To train first synthetic data shoudl be generated.
 
+prerequisite: `$ conda install tensorboardX scikit-learn`
 
 `$ python generate_syns.py --gan_path best_model.pkl  --desc cifar10_lt_100`
 
@@ -16,4 +17,4 @@ and `--add_embed` adds different embeddings to the real and sysn data (only usef
 Note, `--calc_ACC` and `calc_CAS` can not be used at the same time and should be done at separate runs.
 
 To train only on real data, you can simply remove all the flags and it will read from the `--fname` file.
- 
+
