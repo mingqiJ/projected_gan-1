@@ -56,6 +56,7 @@ parser.add_argument('--xflip', action="store_true")
 parser.add_argument('--calc_CAS', action="store_true")
 parser.add_argument('--calc_ACC', action="store_true")
 parser.add_argument('--add_embed', action="store_true")
+parser.add_argument('--resyns', action="store_true")  # generate new sysn data at last epochs
 best_acc1 = 0
 
 
@@ -283,6 +284,17 @@ def main_worker(gpu, args):
         else:
             warnings.warn('Loss type is not listed')
             return
+
+        if (epoch == int(0.8 * args.epochs) or epoch == epoch == int(0.9 * args.epochs))\
+                and args.resyns:
+            train_dataset = ImbalanceCIFAR10JSON(
+                fname=args.fname, fname_syns=args.fname_syns, transform=transform_train,
+                calc_ACC=args.calc_ACC, calc_CAS=args.calc_CAS, add_embed=args.add_embed,
+                xflip=args.xflip, random_seed=random.randint(1,100))
+            train_loader = torch.utils.data.DataLoader(
+                train_dataset, batch_size=args.batch_size, shuffle=(train_sampler is None),
+                num_workers=args.workers, pin_memory=True, sampler=train_sampler)
+
         train(train_loader, model, criterion, optimizer, sched, epoch, args, log_training, tf_writer)
         acc1 = validate(val_loader, model, criterion, epoch, args, log_testing, tf_writer)
 
