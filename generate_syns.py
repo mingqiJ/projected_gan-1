@@ -8,13 +8,25 @@ import json
 import argparse
 
 
+def make_transform(translate, angle):
+    m = np.eye(3)
+    s = np.sin(angle/360.0*np.pi*2)
+    c = np.cos(angle/360.0*np.pi*2)
+    m[0][0] = c
+    m[0][1] = s
+    m[0][2] = translate[0]
+    m[1][0] = -s
+    m[1][1] = c
+    m[1][2] = translate[1]
+    return m
+
 def gen_syns_data(gan_path,
                   dir="syns_data",
                   json_fname="sysn.json",
                   desc="cifar10_lt100",
                   imgs_per_cls=5000,
                   batch_size=16,
-                  truncation_psi=0.9,
+                  truncation_psi=1.0,
                   noise_mode="const",
                   random_seed=33):
     """
@@ -59,7 +71,15 @@ def gen_syns_data(gan_path,
             label = torch.zeros([cur_batch_size, G.c_dim], device=device)
             label[:, class_idx] = 1
             # noise
-            z = torch.from_numpy(np.random.RandomState(random_seed).randn(cur_batch_size, G.z_dim)).to(device)
+            z = torch.from_numpy(np.random.randn(cur_batch_size, G.z_dim)).to(device).float()
+            # Construct an inverse rotation/translation matrix and pass to the generator.  The
+            # generator expects this matrix as an inverse to avoid potentially failing numerical
+            # operations in the network.
+            if hasattr(G.synthesis, 'input'):
+                m = make_transform((0, 0), 0)
+                m = np.linalg.inv(m)
+                G.synthesis.input.transform.copy_(torch.from_numpy(m))
+
             # generate
             imgs = G(z, label, truncation_psi=truncation_psi, noise_mode=noise_mode)
             imgs = (imgs.permute(0, 2, 3, 1) * 127.5 + 128).clamp(0, 255).to(torch.uint8)
@@ -85,20 +105,20 @@ if __name__ == "__main__":
     parser.add_argument('--json_fname', type=str, default="syns.json")
     parser.add_argument('--dir', type=str, default="syns_data")
     parser.add_argument('--imgs_per_cls', type=int, default=5000)
-    parser.add_argument('--batch_size', type=int, default=16)
-    parser.add_argument('--truncation_psi', type=float, default=1.0)
+    parser.add_argument('--batch_size', type=int, default=128)
+    parser.add_argument('--truncation_psi', type=float, default=1.5)
     parser.add_argument('--random_seed', type=int, default=17)
 
     args = parser.parse_args()
-
-    gen_syns_data(
-        gan_path=args.gan_path,
-        dir=args.dir,
-        json_fname=args.json_fname,
-        desc=args.desc,
-        imgs_per_cls=args.imgs_per_cls,
-        batch_size=args.batch_size,
-        truncation_psi=args.truncation_psi,
-        random_seed=args.random_seed,
-        noise_mode="const",
-    )
+    with torch.no_grad():
+        gen_syns_data(
+            gan_path=args.gan_path,
+            dir=args.dir,
+            json_fname=args.json_fname,
+            desc=args.desc,
+            imgs_per_cls=args.imgs_per_cls,
+            batch_size=args.batch_size,
+            truncation_psi=args.truncation_psi,
+            random_seed=args.random_seed,
+            noise_mode="const",
+        )

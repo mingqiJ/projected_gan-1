@@ -217,7 +217,7 @@ class MappingNetwork(torch.nn.Module):
         if c_dim > 0:
             self.embed = FullyConnectedLayer(c_dim, embed_features)
 
-            if is_transitional:  # Added by the authors
+            if is_transitional and z_dim:  # Added by the authors
                 self.proj_embedd = FullyConnectedLayer(embed_features, features_list[1], activation=activation, lr_multiplier=lr_multiplier)    # Added by the authors
                 self.register_buffer('transition', torch.zeros([]))  # Added by the authors
 
@@ -252,7 +252,7 @@ class MappingNetwork(torch.nn.Module):
             layer = getattr(self, f'fc{idx}')
             x = layer(x)
             # added for transitional training
-            if self.is_transitional and (idx == 0):
+            if self.is_transitional and self.z_dim and (idx == 0):
                 x = x + self.transition * self.proj_embedd(y)
 
         # Update moving average of W.
