@@ -155,12 +155,12 @@ def training_loop(
     training_set = dnnlib.util.construct_class_by_name(**training_set_kwargs) # subclass of training.dataset.Dataset
 
     ## modified by Saeed
-    # training_set_sampler = misc.InfiniteSampler(dataset=training_set, rank=rank, num_replicas=num_gpus, seed=random_seed)
+    training_set_sampler = misc.InfiniteSampler(dataset=training_set, rank=rank, num_replicas=num_gpus, seed=random_seed)
 
     # set the iterator infinitely large number and wrap it with dist sampler
-    samples_weight = training_set.get_sample_weights(exp_val=0.15)
-    weighted_sampler = WeightedRandomSampler(samples_weight, num_samples=int(total_kimg*1000), replacement=True)
-    training_set_sampler = DistributedSamplerWrapper(weighted_sampler, num_replicas=num_gpus, rank=rank)
+    # samples_weight = training_set.get_sample_weights(exp_val=0.15)
+    # weighted_sampler = WeightedRandomSampler(samples_weight, num_samples=int(total_kimg*1000), replacement=True)
+    # training_set_sampler = DistributedSamplerWrapper(weighted_sampler, num_replicas=num_gpus, rank=rank)
 
     training_set_iterator = iter(torch.utils.data.DataLoader(dataset=training_set, sampler=training_set_sampler, batch_size=batch_size//num_gpus, **data_loader_kwargs))
 
