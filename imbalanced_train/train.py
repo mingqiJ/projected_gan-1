@@ -286,10 +286,8 @@ def main_worker(gpu, args):
             return
 
         # resyns
-        # syns_ind = 2
-        # if (epoch == int(0.8 * args.epochs) or epoch == int(0.9 * args.epochs))\
-        #         and args.resyns:
-        #     args.fname_syns = f"../syns_data/cifar10_lt_100_{syns_ind}/syns.json"
+        # if (epoch == int(0.8 * args.epochs)) and args.resyns:
+        #     args.fname_syns = f"../syns_data/stylegan2/cifar10_lt100_stylegan_tr1.5/syns.json"
         #
         #     train_dataset = ImbalanceCIFAR10JSON(
         #         fname=args.fname, fname_syns=args.fname_syns, transform=transform_train,
@@ -298,7 +296,6 @@ def main_worker(gpu, args):
         #     train_loader = torch.utils.data.DataLoader(
         #         train_dataset, batch_size=args.batch_size, shuffle=(train_sampler is None),
         #         num_workers=args.workers, pin_memory=True, sampler=train_sampler)
-        #     syns_ind +=1
 
         train(train_loader, model, criterion, optimizer, sched, epoch, args, log_training, tf_writer)
         acc1 = validate(val_loader, model, criterion, epoch, args, log_testing, tf_writer)
