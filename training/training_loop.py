@@ -456,9 +456,9 @@ def training_loop(
 
             # save best fid ckpt
             # added best recall
-            snapshot_pkl_fid = os.path.join(run_dir, f'best_model_recall.pkl')
-            snapshot_pkl_recall = os.path.join(run_dir, f'best_model_recall.pkl')
+            snapshot_pkl_fid = os.path.join(run_dir, f'best_model_fid.pkl')
             cur_nimg_txt_fid = os.path.join(run_dir, f'best_nimg_fid.txt')
+            snapshot_pkl_recall = os.path.join(run_dir, f'best_model_recall.pkl')
             cur_nimg_txt_recall = os.path.join(run_dir, f'best_nimg_recall.txt')
             if rank == 0:
                 if 'fid50k_full' in stats_metrics and stats_metrics['fid50k_full'] < best_fid:
