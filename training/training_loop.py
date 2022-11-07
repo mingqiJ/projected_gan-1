@@ -28,7 +28,7 @@ from torch_utils import misc
 from torch_utils import training_stats
 from torch_utils.ops import conv2d_gradfix
 from torch_utils.ops import grid_sample_gradfix
-
+import random
 import legacy
 from metrics import metric_main
 from pytorch_balanced_sampler import SamplerFactory
@@ -157,6 +157,7 @@ def training_loop(
     ## modified by Saeed
     training_set_sampler = misc.InfiniteSampler(dataset=training_set, rank=rank, num_replicas=num_gpus, seed=random_seed)
 
+    per_class_weights = training_set.get_per_class_weights()
     # set the iterator infinitely large number and wrap it with dist sampler
     # samples_weight = training_set.get_sample_weights(exp_val=0.15)
     # weighted_sampler = WeightedRandomSampler(samples_weight, num_samples=int(total_kimg*1000), replacement=True)
@@ -300,7 +301,9 @@ def training_loop(
             phase_real_c = phase_real_c.to(device).split(batch_gpu)
             all_gen_z = torch.randn([len(phases) * batch_size, G.z_dim], device=device)
             all_gen_z = [phase_gen_z.split(batch_gpu) for phase_gen_z in all_gen_z.split(batch_size)]
-            all_gen_c = [training_set.get_label(np.random.randint(len(training_set))) for _ in range(len(phases) * batch_size)]
+            # modified by me
+            # all_gen_c = [training_set.get_label(np.random.randint(len(training_set))) for _ in range(len(phases) * batch_size)]
+            all_gen_c = [training_set.get_label(random.choices(range(len(training_set)), weights=per_class_weights, k=1)[0]) for _ in range(len(phases) * batch_size)]
             all_gen_c = torch.from_numpy(np.stack(all_gen_c)).pin_memory().to(device)
             all_gen_c = [phase_gen_c.split(batch_gpu) for phase_gen_c in all_gen_c.split(batch_size)]
 
