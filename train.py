@@ -140,6 +140,7 @@ def parse_comma_separated_list(s):
 @click.option('--t_start_kimg', help='start kimg for progressive conditioning',                 type=int, metavar='INT')
 @click.option('--t_end_kimg',   help='end kimg for progressive conditioning',                   type=int, metavar='INT')
 @click.option('--cls_ada_aug',  help='class balancing data augmentation',           type=bool,metavar='BOOL', default=False)
+@click.option('--mixup',  help='mixup data augmentation',           type=bool, metavar='BOOL', default=False)
 
 # Optional features.
 @click.option('--cond',         help='Train conditional model', metavar='BOOL',                 type=bool, default=False, show_default=True)
@@ -189,6 +190,10 @@ def main(**kwargs):
     c.num_gpus = opts.gpus
     c.batch_size = opts.batch
     c.batch_gpu = opts.batch_gpu or opts.batch // opts.gpus
+    # increase the batch size since
+    if opts.mixup:
+        c.batch_size *= 2
+        c.batch_gpu *= 2
     c.G_kwargs.channel_base = opts.cbase
     c.G_kwargs.channel_max = opts.cmax
     c.G_kwargs.mapping_kwargs.num_layers = opts.map_depth
@@ -266,6 +271,7 @@ def main(**kwargs):
     c.D_kwargs = dnnlib.EasyDict(
         class_name='pg_modules.discriminator.ProjectedDiscriminator',
         diffaug=True,
+        mixup=opts.mixup,
         interp224=(c.training_set_kwargs.resolution < 224),
         backbone_kwargs=dnnlib.EasyDict(),
     )

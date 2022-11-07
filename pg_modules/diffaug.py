@@ -4,7 +4,7 @@
 
 import torch
 import torch.nn.functional as F
-
+from torch.autograd import Variable
 
 def DiffAugment(x, policy='', channels_first=True):
 
@@ -86,6 +86,26 @@ def rand_cutout(x, mask=None, ratio=0.2):
         return x
     else:
         return out
+
+
+def mix(x1, x2, alpha):
+    return alpha * x1 + (1.0 - alpha) * x2
+
+
+def mixup(x, c, m=0):
+    assert 0 <= m <= 1
+    if m == 0:
+        return x, c
+
+    b = x.size(0)
+    assert b % 2 == 0
+    mid = int(b/2)
+    x1, x2 = x[:mid], x[mid:]
+    c1, c2 = c[:mid], c[mid:]
+    alpha = Variable(torch.randn(mid, 1).uniform_(0, m)).to(x.device)
+    mix_x, mix_c = mix(x1, x2, alpha), mix(c1, c2, alpha)
+    return mix_x, mix_c
+
 
 AUGMENT_FNS = {
     'color': [rand_brightness, rand_saturation, rand_contrast],

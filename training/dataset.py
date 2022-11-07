@@ -186,6 +186,8 @@ class ImageFolderDataset(Dataset):
             else:
                 self.fname = "dataset.json"
 
+
+
             with self._open_file(self.fname) as f:
                 fnames = json.load(f)['labels']
 
@@ -270,49 +272,41 @@ class ImageFolderDataset(Dataset):
         return labels
 
     ## added by Saeed
-    def get_class_inds(self):
-        labels = self._get_raw_labels()
-        class_idxs = []
-        for i in range(len(set(labels))):
-            class_idxs.append(np.where(labels == i)[0].tolist())
-        return class_idxs
-
-    ## added by Saeed
     def get_class_counts(self):
         labels = self._get_raw_labels()
         class_counts = []
         for i in range(len(set(labels))):
-            class_counts.append(len(np.where(labels == i)[0]))
+            count = len(np.where(labels == i)[0])
+            if self._xflip[-1] == 1:
+                count *= 2
+            class_counts.append(count)
         return class_counts
 
     ## added by Saeed
     def get_sample_weights(self, exp_val=1.0):
-        eps = 1e-12
-        class_counts = self.get_class_counts()
-        class_counts = np.array(class_counts) ** exp_val
+        class_counts = np.array(self.get_class_counts(), dtype="float32")
+        class_counts = class_counts ** exp_val
         weight = 1.0 / class_counts
-        weight /= (weight.max() + eps)
-        samples_weight = np.array([weight[c] for c in self._get_raw_labels()])
+        weight /= weight.max()
+        raw_labels = self._get_raw_labels()
+        samples_weight = np.array([weight[raw_labels[idx]] for idx in self._raw_idx])
         samples_weight = torch.from_numpy(samples_weight).type('torch.DoubleTensor')
         return samples_weight
 
     ## added by Saeed
-    def get_sample_weights_beta(self):
-        class_counts = self.get_class_counts()
-        beta = 0.9999
-        effective_num = 1.0 - np.power(beta, class_counts)
-        per_cls_weights = (1.0 - beta) / np.array(effective_num)
-        print(per_cls_weights/per_cls_weights.max())
-        # weight for each sample
-        samples_weight = [per_cls_weights[c] for c in self._get_raw_labels()]
-        samples_weight = torch.DoubleTensor(samples_weight)
-        return samples_weight
+    def get_per_class_weights(self):
+        class_counts = np.array(self.get_class_counts(), dtype="float32")
+        class_counts /= class_counts.max()
+        raw_labels = self._get_raw_labels()
+        class_weight = np.array([class_counts[raw_labels[idx]] for idx in self._raw_idx])
+        class_weight = torch.from_numpy(class_weight).type('torch.DoubleTensor')
+        return class_weight
 
     ## added by Saeed
-    def get_cls_ada_aug_p(self):
+    def get_cls_ada_aug_p(self, exp_val=1.0):
         eps = 1e-12
         class_counts = self.get_class_counts()
-        class_counts = np.array(class_counts) ** 0.15
+        class_counts = np.array(class_counts) ** exp_val
         p = 1.0 / class_counts
         p /= (p.max() + eps)
         return torch.from_numpy(p)

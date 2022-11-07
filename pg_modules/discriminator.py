@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 from pg_modules.blocks import DownBlock, DownBlockPatch, conv2d
 from pg_modules.projector import F_RandomProj
-from pg_modules.diffaug import DiffAugment
+from pg_modules.diffaug import DiffAugment, mixup
 
 
 class SingleDisc(nn.Module):
@@ -163,6 +163,7 @@ class ProjectedDiscriminator(torch.nn.Module):
     def __init__(
         self,
         diffaug=True,
+        mixup = False,
         interp224=True,
         c_dim=None,
         backbone_kwargs={},
@@ -170,6 +171,7 @@ class ProjectedDiscriminator(torch.nn.Module):
     ):
         super().__init__()
         self.diffaug = diffaug
+        self.mixup = mixup
         self.interp224 = interp224
         self.feature_network = F_RandomProj(**backbone_kwargs)
         self.discriminator = MultiScaleD(
@@ -178,6 +180,7 @@ class ProjectedDiscriminator(torch.nn.Module):
             **backbone_kwargs,
         )
         self.register_buffer('transition', torch.zeros([]))  # Added by the authors
+        self.mixup = False
 
     def train(self, mode=True):
         self.feature_network = self.feature_network.train(False)
@@ -190,6 +193,8 @@ class ProjectedDiscriminator(torch.nn.Module):
     def forward(self, x, c):
         if self.diffaug:
             x = DiffAugment(x, policy='color,translation,cutout')
+            if self.mixup:
+                x, c = mixup(x, c, m=0.4)
 
         if self.interp224:
             x = F.interpolate(x, 224, mode='bilinear', align_corners=False)
