@@ -298,7 +298,8 @@ class ImageFolderDataset(Dataset):
         class_counts = np.array(self.get_class_counts(), dtype="float32")
         class_counts /= class_counts.max()
         raw_labels = self._get_raw_labels()
-        class_weight = [class_counts[raw_labels[idx]] for idx in self._raw_idx]
+        class_weight = np.array([class_counts[raw_labels[idx]] for idx in self._raw_idx])
+        class_weight = torch.from_numpy(class_weight).type('torch.DoubleTensor')
         return class_weight
 
     ## added by Saeed
