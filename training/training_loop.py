@@ -157,13 +157,13 @@ def training_loop(
     ## modified by Saeed
     training_set_sampler = misc.InfiniteSampler(dataset=training_set, rank=rank, num_replicas=num_gpus, seed=random_seed)
 
-    # per_class_weights = training_set.get_per_class_weights()
+    per_class_weights = training_set.get_per_class_weights()
     # set the iterator infinitely large number and wrap it with dist sampler
     # samples_weight = training_set.get_sample_weights(exp_val=0.35)
     # weighted_sampler = WeightedRandomSampler(samples_weight, num_samples=int(total_kimg*1000), replacement=True)
     # training_set_sampler = DistributedSamplerWrapper(weighted_sampler, num_replicas=num_gpus, rank=rank)
     # adj_weights = (per_class_weights * samples_weight).tolist()
-    # adj_weights = per_class_weights
+    adj_weights = per_class_weights
 
     training_set_iterator = iter(torch.utils.data.DataLoader(dataset=training_set, sampler=training_set_sampler, batch_size=batch_size//num_gpus, **data_loader_kwargs))
 
@@ -304,8 +304,8 @@ def training_loop(
             all_gen_z = torch.randn([len(phases) * batch_size, G.z_dim], device=device)
             all_gen_z = [phase_gen_z.split(batch_gpu) for phase_gen_z in all_gen_z.split(batch_size)]
             # modified by me
-            all_gen_c = [training_set.get_label(np.random.randint(len(training_set))) for _ in range(len(phases) * batch_size)]
-            #all_gen_c = [training_set.get_label(random.choices(range(len(training_set)), weights=adj_weights, k=1)[0]) for _ in range(len(phases) * batch_size)]
+            #all_gen_c = [training_set.get_label(np.random.randint(len(training_set))) for _ in range(len(phases) * batch_size)]
+            all_gen_c = [training_set.get_label(random.choices(range(len(training_set)), weights=adj_weights, k=1)[0]) for _ in range(len(phases) * batch_size)]
             all_gen_c = torch.from_numpy(np.stack(all_gen_c)).pin_memory().to(device)
             all_gen_c = [phase_gen_c.split(batch_gpu) for phase_gen_c in all_gen_c.split(batch_size)]
 
