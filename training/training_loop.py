@@ -127,6 +127,8 @@ def training_loop(
     t_start_kimg            = 0,
     t_end_kimg              = 0,
     cls_ada_aug             = False,
+    weight_sampling         = False,
+    weight_exp_val          = 1.0,
     # cls_ada_aug_interval    = 4,
     # cls_ada_aug_kimg        = 500
 ):
@@ -155,17 +157,21 @@ def training_loop(
     training_set = dnnlib.util.construct_class_by_name(**training_set_kwargs) # subclass of training.dataset.Dataset
 
     ## modified by Saeed
-    training_set_sampler = misc.InfiniteSampler(dataset=training_set, rank=rank, num_replicas=num_gpus, seed=random_seed)
-
-    per_class_weights = training_set.get_per_class_weights()
-    # set the iterator infinitely large number and wrap it with dist sampler
-    # samples_weight = training_set.get_sample_weights(exp_val=0.35)
-    # weighted_sampler = WeightedRandomSampler(samples_weight, num_samples=int(total_kimg*1000), replacement=True)
-    # training_set_sampler = DistributedSamplerWrapper(weighted_sampler, num_replicas=num_gpus, rank=rank)
-    # adj_weights = (per_class_weights * samples_weight).tolist()
-    adj_weights = per_class_weights
+    # TODO unconditional set up
+    if weight_sampling:
+        # set the iterator infinitely large number and wrap it with dist sampler
+        samples_weight = training_set.get_sample_exp_weights(weight_exp_val)
+        weighted_sampler = WeightedRandomSampler(samples_weight, num_samples=int(total_kimg * 1000), replacement=True)
+        training_set_sampler = DistributedSamplerWrapper(weighted_sampler, num_replicas=num_gpus, rank=rank)
+    else:
+        training_set_sampler = misc.InfiniteSampler(dataset=training_set, rank=rank, num_replicas=num_gpus, seed=random_seed)
 
     training_set_iterator = iter(torch.utils.data.DataLoader(dataset=training_set, sampler=training_set_sampler, batch_size=batch_size//num_gpus, **data_loader_kwargs))
+
+    class_weights = torch.tensor(training_set.get_class_counts()).type('torch.DoubleTensor')
+    if weight_sampling:
+        weights = training_set.get_exp_weights(weight_exp_val)
+        class_weights *= weights
 
     if rank == 0:
         print()
@@ -304,8 +310,8 @@ def training_loop(
             all_gen_z = torch.randn([len(phases) * batch_size, G.z_dim], device=device)
             all_gen_z = [phase_gen_z.split(batch_gpu) for phase_gen_z in all_gen_z.split(batch_size)]
             # modified by me
-            #all_gen_c = [training_set.get_label(np.random.randint(len(training_set))) for _ in range(len(phases) * batch_size)]
-            all_gen_c = [training_set.get_label(random.choices(range(len(training_set)), weights=adj_weights, k=1)[0]) for _ in range(len(phases) * batch_size)]
+            # all_gen_c = [training_set.get_label(np.random.randint(len(training_set))) for _ in range(len(phases) * batch_size)]
+            all_gen_c = [training_set.get_label_from_c(torch.multinomial(class_weights, 1, replacement=True).item()) for _ in range(len(phases) * batch_size)]
             all_gen_c = torch.from_numpy(np.stack(all_gen_c)).pin_memory().to(device)
             all_gen_c = [phase_gen_c.split(batch_gpu) for phase_gen_c in all_gen_c.split(batch_size)]
 
@@ -371,7 +377,7 @@ def training_loop(
                 D.transition = torch.clip(D.transition + m * (cur_nimg - old_nimg) / 1000, max=1.0)
             old_nimg = cur_nimg
 
-    # Perform maintenance tasks once per tick.
+        # Perform maintenance tasks once per tick.
         done = (cur_nimg >= total_kimg * 1000)
         if (not done) and (cur_tick != 0) and (cur_nimg < tick_start_nimg + kimg_per_tick * 1000):
             continue
@@ -454,7 +460,7 @@ def training_loop(
                 print('Evaluating metrics...')
             for metric in metrics:
                 result_dict = metric_main.calc_metric(metric=metric, G=snapshot_data['G_ema'], run_dir=run_dir, cur_nimg=cur_nimg,
-                    dataset_kwargs=training_set_kwargs, num_gpus=num_gpus, rank=rank, device=device)
+                                                      dataset_kwargs=training_set_kwargs, num_gpus=num_gpus, rank=rank, device=device)
                 if rank == 0:
                     metric_main.report_metric(result_dict, run_dir=run_dir, snapshot_pkl=snapshot_pkl)
                 stats_metrics.update(result_dict.results)

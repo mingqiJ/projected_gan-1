@@ -117,6 +117,19 @@ class Dataset(torch.utils.data.Dataset):
             label = onehot
         return label.copy()
 
+    ## added by Saeed
+    def get_label_from_c(self, c):
+        if self._use_labels:
+            label = np.int64(c)
+            onehot = np.zeros(self.label_shape, dtype=np.float32)
+            onehot[label] = 1
+            label = onehot
+        else:
+            label = np.zeros([self._raw_shape[0], 0], dtype=np.float32)
+        return label.copy()
+
+    # ---------------------------
+
     def get_details(self, idx):
         d = dnnlib.EasyDict()
         d.raw_idx = int(self._raw_idx[idx])
@@ -282,14 +295,18 @@ class ImageFolderDataset(Dataset):
             class_counts.append(count)
         return class_counts
 
-    ## added by Saeed
-    def get_sample_weights(self, exp_val=1.0):
-        class_counts = np.array(self.get_class_counts(), dtype="float32")
+    def get_exp_weights(self, exp_val=1.0):
+        class_counts = torch.tensor(self.get_class_counts()).type('torch.DoubleTensor')
         class_counts = class_counts ** exp_val
-        weight = 1.0 / class_counts
-        weight /= weight.max()
+        weights = 1.0 / class_counts
+        # weights /= weights.max()
+        return weights
+
+    ## added by Saeed
+    def get_sample_exp_weights(self, exp_val=1.0):
+        weights = self.get_exp_weights(exp_val)
         raw_labels = self._get_raw_labels()
-        samples_weight = np.array([weight[raw_labels[idx]] for idx in self._raw_idx])
+        samples_weight = np.array([weights[raw_labels[idx]] for idx in self._raw_idx])
         samples_weight = torch.from_numpy(samples_weight).type('torch.DoubleTensor')
         return samples_weight
 
@@ -312,6 +329,3 @@ class ImageFolderDataset(Dataset):
         return torch.from_numpy(p)
 
 
-
-
-#----------------------------------------------------------------------------
