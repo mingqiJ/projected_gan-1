@@ -195,7 +195,7 @@ class ProjectedDiscriminator(torch.nn.Module):
         if self.diffaug:
             x = DiffAugment(x, policy='color,translation,cutout')
 
-        if self.mixup > 0:
+        if self.mixup_alpha > 0:
             x, c = mixup(x, c, alpha=self.mixup_alpha)
 
         if self.interp224:
