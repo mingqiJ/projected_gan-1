@@ -162,7 +162,7 @@ class ProjectedDiscriminator(torch.nn.Module):
     def __init__(
         self,
         diffaug=True,
-        mixup = 0,
+        mixup_alpha = 0,
         interp224=True,
         c_dim=None,
         backbone_kwargs={},
@@ -181,7 +181,7 @@ class ProjectedDiscriminator(torch.nn.Module):
         # self.transition will be access when calculating loss.
         self.register_buffer('transition', torch.zeros([]))  # Added by the authors
         assert 0 <= mixup <= 1
-        self.mixup = mixup
+        self.mixup_alpha = mixup_alpha
 
     def train(self, mode=True):
         self.feature_network = self.feature_network.train(False)
@@ -196,7 +196,7 @@ class ProjectedDiscriminator(torch.nn.Module):
             x = DiffAugment(x, policy='color,translation,cutout')
 
         if self.mixup > 0:
-            x, c = mixup(x, c, m=self.mixup)
+            x, c = mixup(x, c, alpha=self.mixup_alpha)
 
         if self.interp224:
             x = F.interpolate(x, 224, mode='bilinear', align_corners=False)
