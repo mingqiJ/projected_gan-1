@@ -180,7 +180,7 @@ class ProjectedDiscriminator(torch.nn.Module):
         )
         # self.transition will be access when calculating loss.
         self.register_buffer('transition', torch.zeros([]))  # Added by the authors
-        assert 0 <= mixup <= 1
+        assert 0 <= mixup_alpha <= 1
         self.mixup_alpha = mixup_alpha
 
     def train(self, mode=True):
