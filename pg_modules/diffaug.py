@@ -100,10 +100,10 @@ def mixup(x, c, alpha=0.0):
     batch_size = x.size(0)
     index = torch.randperm(batch_size).to(x.device)
 
-    # lam = np.random.beta(alpha, alpha)
-    # mix_x, mix_c = mix(x, x[index, ...], lam), mix(c, c[index, ...], lam)
-    lam = torch.empty(batch_size, 1, 1, 1).uniform_(0, alpha).to(x.device)
-    mix_x, mix_c = mix(x, x[index, ...], lam), mix(c, c[index, ...], lam[:, :, 0, 0])
+    lam = np.random.beta(alpha, alpha)
+    mix_x, mix_c = mix(x, x[index, ...], lam), mix(c, c[index, ...], lam)
+    # lam = torch.empty(batch_size, 1, 1, 1).uniform_(0, alpha).to(x.device)
+    # mix_x, mix_c = mix(x, x[index, ...], lam), mix(c, c[index, ...], lam[:, :, 0, 0])
     return mix_x, mix_c
 
 
