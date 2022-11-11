@@ -93,15 +93,14 @@ def mix(x1, x2, alpha):
 
 
 def mixup(x, c, m=0):
-    assert 0 <= m <= 1
-    if m == 0:
-        return x, c
-
+    # if m == 0:
+    #     return x, c
     b = x.size(0)
-    assert b % 2 == 0
+    # assert b % 2 == 0
     mid = int(b/2)
-    x1, x2 = x[:mid], x[mid:]
-    c1, c2 = c[:mid], c[mid:]
+    end = 2 * mid
+    x1, x2 = x[:mid], x[mid:end]
+    c1, c2 = c[:mid], c[mid:end]
     alpha = Variable(torch.randn(mid, 1).uniform_(0, m)).to(x.device)
     mix_x, mix_c = mix(x1, x2, alpha), mix(c1, c2, alpha)
     return mix_x, mix_c

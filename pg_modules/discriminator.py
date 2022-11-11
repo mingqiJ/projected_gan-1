@@ -95,7 +95,6 @@ class SingleDiscCond(nn.Module):
         # added for transitional training
         self.is_transitional = is_transitional
         if self.is_transitional:
-            self.register_buffer('transition', torch.zeros([]))  # Added by the authors
             self.out_uc = conv2d(nfc[end_sz], 1, 4, 1, 0, bias=False)
 
         # additions for conditioning on class information
@@ -163,7 +162,7 @@ class ProjectedDiscriminator(torch.nn.Module):
     def __init__(
         self,
         diffaug=True,
-        mixup = False,
+        mixup = 0,
         interp224=True,
         c_dim=None,
         backbone_kwargs={},
@@ -179,8 +178,10 @@ class ProjectedDiscriminator(torch.nn.Module):
             resolutions=self.feature_network.RESOLUTIONS,
             **backbone_kwargs,
         )
+        # self.transition will be access when calculating loss.
         self.register_buffer('transition', torch.zeros([]))  # Added by the authors
-        self.mixup = False
+        assert 0 <= mixup <= 1
+        self.mixup = mixup
 
     def train(self, mode=True):
         self.feature_network = self.feature_network.train(False)
@@ -193,8 +194,9 @@ class ProjectedDiscriminator(torch.nn.Module):
     def forward(self, x, c):
         if self.diffaug:
             x = DiffAugment(x, policy='color,translation,cutout')
-            if self.mixup:
-                x, c = mixup(x, c, m=0.4)
+
+        if self.mixup > 0:
+            x, c = mixup(x, c, m=self.mixup)
 
         if self.interp224:
             x = F.interpolate(x, 224, mode='bilinear', align_corners=False)

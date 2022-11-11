@@ -140,7 +140,7 @@ def parse_comma_separated_list(s):
 @click.option('--t_start_kimg', help='start kimg for progressive conditioning',                 type=int, metavar='INT')
 @click.option('--t_end_kimg',   help='end kimg for progressive conditioning',                   type=int, metavar='INT')
 @click.option('--cls_ada_aug',  help='class balancing data augmentation',           type=bool,metavar='BOOL', default=False)
-@click.option('--mixup',        help='mixup data augmentation',           type=bool, metavar='BOOL', default=False)
+@click.option('--mixup_val',    help='alpha in mixup data augmentation',          metavar='FLOAT', type=click.FloatRange(min=0, max=1), default=0)
 @click.option('--weight_sampling', help='weight_sampling in the data loader',           type=bool, metavar='BOOL', default=False)
 @click.option('--weight_exp_val',  help='weight sampling exp',          metavar='FLOAT', type=click.FloatRange(min=0, max=1), default=0.35)
 
@@ -269,7 +269,7 @@ def main(**kwargs):
     c.D_kwargs = dnnlib.EasyDict(
         class_name='pg_modules.discriminator.ProjectedDiscriminator',
         diffaug=True,
-        mixup=opts.mixup,
+        mixup=opts.mixup_val,
         interp224=(c.training_set_kwargs.resolution < 224),
         backbone_kwargs=dnnlib.EasyDict(),
     )
