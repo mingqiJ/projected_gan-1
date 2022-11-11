@@ -70,9 +70,11 @@ def get_plugin(module_name, sources, headers=None, source_dir=None, **build_kwar
 
     # Print status.
     if verbosity == 'full':
-        print(f'Setting up PyTorch plugin "{module_name}"...')
+        # print(f'Setting up PyTorch plugin "{module_name}"...')
+        pass
     elif verbosity == 'brief':
-        print(f'Setting up PyTorch plugin "{module_name}"... ', end='', flush=True)
+        # print(f'Setting up PyTorch plugin "{module_name}"... ', end='', flush=True)
+        pass
     verbose_build = (verbosity == 'full')
 
     # Compile and load.
@@ -143,14 +145,17 @@ def get_plugin(module_name, sources, headers=None, source_dir=None, **build_kwar
 
     except:
         if verbosity == 'brief':
-            print('Failed!')
+            # print('Failed!')
+            pass
         raise
 
     # Print status and add to cache dict.
     if verbosity == 'full':
-        print(f'Done setting up PyTorch plugin "{module_name}".')
+        # print(f'Done setting up PyTorch plugin "{module_name}".')
+        pass
     elif verbosity == 'brief':
-        print('Done.')
+        # print('Done.')
+        pass
     _cached_plugins[module_name] = module
     return module
 

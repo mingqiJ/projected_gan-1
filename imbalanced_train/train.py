@@ -247,8 +247,8 @@ def main_worker(gpu, args):
         args.cls_num_list = cls_num_list
 
     # init log for training
-    log_training = open(os.path.join(args.root_log, args.store_name, 'log_train.csv'), 'w')
-    log_testing = open(os.path.join(args.root_log, args.store_name, 'log_test.csv'), 'w')
+    log_training = open(os.path.join(args.root_log, args.store_name, 'log_train.txt'), 'w')
+    log_testing = open(os.path.join(args.root_log, args.store_name, 'log_test.txt'), 'w')
     with open(os.path.join(args.root_log, args.store_name, 'args.txt'), 'w') as f:
         f.write(str(args))
     tf_writer = SummaryWriter(log_dir=os.path.join(args.root_log, args.store_name))
