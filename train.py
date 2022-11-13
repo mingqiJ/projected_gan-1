@@ -142,7 +142,7 @@ def parse_comma_separated_list(s):
 @click.option('--cls_ada_aug',  help='class balancing data augmentation',           type=bool,metavar='BOOL', default=False)
 @click.option('--mixup_alpha',    help='alpha in mixup data augmentation',          metavar='FLOAT', type=click.FloatRange(min=0, max=1), default=0)
 @click.option('--weight_sampling', help='weight_sampling in the data loader',           type=bool, metavar='BOOL', default=False)
-@click.option('--weight_exp_val',  help='weight sampling exp',          metavar='FLOAT', type=click.FloatRange(min=0, max=1), default=0.35)
+@click.option('--weight_exp_val',  help='weight sampling exp',          metavar='FLOAT', type=click.FloatRange(min=0, max=1), default=0)
 
 # Optional features.
 @click.option('--cond',         help='Train conditional model', metavar='BOOL',                 type=bool, default=False, show_default=True)
@@ -260,6 +260,12 @@ def main(**kwargs):
     # added for class adaptive augmentation
     if opts.cls_ada_aug:
         desc += f'--cls-ada-aug'
+
+    if opts.mixup_alpha > 0:
+        desc += f'-mixup-alpha{opts.mixup_alpha}'
+
+    if opts.weight_sampling:
+        desc += f'-wsampling-exp-{opts.weight_exp_val}'
 
     if opts.desc is not None:
         desc += f'-{opts.desc}'

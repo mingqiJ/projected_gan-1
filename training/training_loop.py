@@ -128,7 +128,7 @@ def training_loop(
     t_end_kimg              = 0,
     cls_ada_aug             = False,
     weight_sampling         = False,
-    weight_exp_val          = 1.0,
+    weight_exp_val          = 0.0,
     # cls_ada_aug_interval    = 4,
     # cls_ada_aug_kimg        = 500
 ):
