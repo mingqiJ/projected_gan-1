@@ -131,7 +131,7 @@ class MultiScaleD(nn.Module):
         cond=0,
         separable=False,
         patch=False,
-        is_transitional=None,
+        is_transitional=False,
         **kwargs,
     ):
         super().__init__()

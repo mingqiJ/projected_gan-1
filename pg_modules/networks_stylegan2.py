@@ -192,7 +192,7 @@ class MappingNetwork(torch.nn.Module):
         activation      = 'lrelu',  # Activation function: 'relu', 'lrelu', etc.
         lr_multiplier   = 0.01,     # Learning rate multiplier for the mapping layers.
         w_avg_beta      = 0.998,    # Decay for tracking the moving average of W during training, None = do not track.
-        is_transitional = None
+        is_transitional = False
     ):
         super().__init__()
         self.z_dim = z_dim
@@ -219,7 +219,6 @@ class MappingNetwork(torch.nn.Module):
 
             if is_transitional and z_dim:  # Added by the authors
                 self.proj_embedd = FullyConnectedLayer(embed_features, features_list[1], activation=activation, lr_multiplier=lr_multiplier)    # Added by the authors
-                self.register_buffer('transition', torch.zeros([]))  # Added by the authors
 
         for idx in range(num_layers):
             in_features = features_list[idx]
@@ -230,7 +229,7 @@ class MappingNetwork(torch.nn.Module):
         if num_ws is not None and w_avg_beta is not None:
             self.register_buffer('w_avg', torch.zeros([w_dim]))
 
-    def forward(self, z, c, truncation_psi=1, truncation_cutoff=None, update_emas=False):
+    def forward(self, z, c, truncation_psi=1, truncation_cutoff=None, update_emas=False, transition=0.0):
         # Embed, normalize, and concat inputs.
         x = None
         with torch.autograd.profiler.record_function('input'):
@@ -253,7 +252,7 @@ class MappingNetwork(torch.nn.Module):
             x = layer(x)
             # added for transitional training
             if self.is_transitional and self.z_dim and (idx == 0):
-                x = x + self.transition * self.proj_embedd(y)
+                x = x + transition * self.proj_embedd(y)
 
         # Update moving average of W.
         if update_emas and self.w_avg_beta is not None:
@@ -548,8 +547,9 @@ class Generator(torch.nn.Module):
         self.synthesis = SynthesisNetwork(w_dim=w_dim, img_resolution=img_resolution, img_channels=img_channels, **synthesis_kwargs)
         self.num_ws = self.synthesis.num_ws
         self.mapping = MappingNetwork(z_dim=z_dim, c_dim=c_dim, w_dim=w_dim, num_ws=self.num_ws, **mapping_kwargs)
+        self.register_buffer('transition', torch.zeros([]))  # Added by the authors
 
     def forward(self, z, c, truncation_psi=1, truncation_cutoff=None, update_emas=False, **synthesis_kwargs):
-        ws = self.mapping(z, c, truncation_psi=truncation_psi, truncation_cutoff=truncation_cutoff, update_emas=update_emas)
+        ws = self.mapping(z, c, truncation_psi=truncation_psi, truncation_cutoff=truncation_cutoff, update_emas=update_emas, transition=self.transition)
         img = self.synthesis(ws, update_emas=update_emas, **synthesis_kwargs)
         return img

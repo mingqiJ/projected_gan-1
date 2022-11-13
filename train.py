@@ -220,7 +220,7 @@ def main(**kwargs):
         use_separable_discs = True
 
     elif opts.cfg in ['fastgan', 'fastgan_lite']:
-        c.G_kwargs = dnnlib.EasyDict(class_name='pg_modules.networks_fastgan.Generator', cond=opts.cond, synthesis_kwargs=dnnlib.EasyDict())
+        c.G_kwargs = dnnlib.EasyDict(class_name='pg_modules.networks_fastgan.Generator', cond=opts.cond, synthesis_kwargs=dnnlib.EasyDict(), mapping_kwargs=dnnlib.EasyDict())
         c.G_kwargs.synthesis_kwargs.lite = (opts.cfg == 'fastgan_lite')
         c.G_opt_kwargs.lr = c.D_opt_kwargs.lr = 0.0002
         use_separable_discs = False
@@ -288,9 +288,9 @@ def main(**kwargs):
     c.D_kwargs.backbone_kwargs.cond = opts.cond
 
     # added for transitional training
-    if opts.cfg == 'stylegan2':
-        c.G_kwargs.mapping_kwargs.is_transitional = is_transitional
-        c.D_kwargs.backbone_kwargs.is_transitional = is_transitional
+    c.D_kwargs.backbone_kwargs.is_transitional = is_transitional
+    c.G_kwargs.mapping_kwargs.is_transitional = is_transitional
+    c.G_kwargs.synthesis_kwargs.is_transitional = is_transitional
 
     # added for class adaptive augmentation
     c.cls_ada_aug = opts.cls_ada_aug

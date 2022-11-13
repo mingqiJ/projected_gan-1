@@ -74,21 +74,21 @@ def UpBlockSmall(in_planes, out_planes):
 
 
 class UpBlockSmallCond(nn.Module):
-    def __init__(self, in_planes, out_planes, z_dim):
+    def __init__(self, in_planes, out_planes, z_dim, is_transitional=False):
         super().__init__()
         self.in_planes = in_planes
         self.out_planes = out_planes
         self.up = nn.Upsample(scale_factor=2, mode='nearest')
         self.conv = conv2d(in_planes, out_planes*2, 3, 1, 1, bias=False)
 
-        which_bn = functools.partial(CCBN, which_linear=linear, input_size=z_dim)
+        which_bn = functools.partial(CCBN, which_linear=linear, input_size=z_dim, is_transitional=is_transitional)
         self.bn = which_bn(2*out_planes)
         self.act = GLU()
 
-    def forward(self, x, c):
+    def forward(self, x, c, transition=0.0):
         x = self.up(x)
         x = self.conv(x)
-        x = self.bn(x, c)
+        x = self.bn(x, c, transition)
         x = self.act(x)
         return x
 
@@ -107,7 +107,7 @@ def UpBlockBig(in_planes, out_planes):
 
 
 class UpBlockBigCond(nn.Module):
-    def __init__(self, in_planes, out_planes, z_dim):
+    def __init__(self, in_planes, out_planes, z_dim, is_transitional=False):
         super().__init__()
         self.in_planes = in_planes
         self.out_planes = out_planes
@@ -115,24 +115,24 @@ class UpBlockBigCond(nn.Module):
         self.conv1 = conv2d(in_planes, out_planes*2, 3, 1, 1, bias=False)
         self.conv2 = conv2d(out_planes, out_planes*2, 3, 1, 1, bias=False)
 
-        which_bn = functools.partial(CCBN, which_linear=linear, input_size=z_dim)
+        which_bn = functools.partial(CCBN, which_linear=linear, input_size=z_dim, is_transitional=is_transitional)
         self.bn1 = which_bn(2*out_planes)
         self.bn2 = which_bn(2*out_planes)
         self.act = GLU()
         self.noise = NoiseInjection()
 
-    def forward(self, x, c):
+    def forward(self, x, c, transition=0.0):
         # block 1
         x = self.up(x)
         x = self.conv1(x)
         x = self.noise(x)
-        x = self.bn1(x, c)
+        x = self.bn1(x, c, transition)
         x = self.act(x)
 
         # block 2
         x = self.conv2(x)
         x = self.noise(x)
-        x = self.bn2(x, c)
+        x = self.bn2(x, c, transition)
         x = self.act(x)
 
         return x
@@ -266,7 +266,7 @@ class NoiseInjection(nn.Module):
 
 class CCBN(nn.Module):
     ''' conditional batchnorm '''
-    def __init__(self, output_size, input_size, which_linear, eps=1e-5, momentum=0.1):
+    def __init__(self, output_size, input_size, which_linear, eps=1e-5, momentum=0.1, is_transitional=False):
         super().__init__()
         self.output_size, self.input_size = output_size, input_size
 
@@ -282,13 +282,21 @@ class CCBN(nn.Module):
         self.register_buffer('stored_mean', torch.zeros(output_size))
         self.register_buffer('stored_var', torch.ones(output_size))
 
-    def forward(self, x, y):
+        self.is_transitional = is_transitional
+
+    def forward(self, x, y, transition=0.0):
+        # modified by authors
         # Calculate class-conditional gains and biases
-        gain = (1 + self.gain(y)).view(y.size(0), -1, 1, 1)
-        bias = self.bias(y).view(y.size(0), -1, 1, 1)
+
         out = F.batch_norm(x, self.stored_mean, self.stored_var, None, None,
                            self.training, 0.1, self.eps)
-        return out * gain + bias
+        gain = self.gain(y).view(y.size(0), -1, 1, 1)
+        bias = self.bias(y).view(y.size(0), -1, 1, 1)
+
+        if self.is_transitional:
+            return out + transition * (out * gain + bias)
+
+        return out * (1 + gain) + bias
 
 
 class Interpolate(nn.Module):
