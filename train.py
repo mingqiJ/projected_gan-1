@@ -204,6 +204,18 @@ def main(**kwargs):
     c.random_seed = c.training_set_kwargs.random_seed = opts.seed
     c.data_loader_kwargs.num_workers = opts.workers
 
+    # added for transitional training
+    if opts.t_start_kimg is None:
+        opts.t_start_kimg = 0
+    if opts.t_end_kimg is None:
+        opts.t_end_kimg = 0
+    assert isinstance(opts.t_start_kimg, int)
+    assert isinstance(opts.t_end_kimg, int)
+    assert (opts.t_start_kimg >= 0 and opts.t_start_kimg <= opts.t_end_kimg)
+    c.t_start_kimg = opts.t_start_kimg
+    c.t_end_kimg = opts.t_end_kimg
+    is_transitional = opts.t_start_kimg < opts.t_end_kimg
+
     # Sanity checks.
     if c.batch_size % c.num_gpus != 0:
         raise click.ClickException('--batch must be a multiple of --gpus')
@@ -218,12 +230,14 @@ def main(**kwargs):
         c.G_kwargs.class_name = 'pg_modules.networks_stylegan2.Generator'
         c.G_kwargs.fused_modconv_default = 'inference_only' # Speed up training by using regular convolutions instead of grouped convolutions.
         use_separable_discs = True
+        c.G_kwargs.mapping_kwargs.is_transitional = is_transitional
 
     elif opts.cfg in ['fastgan', 'fastgan_lite']:
-        c.G_kwargs = dnnlib.EasyDict(class_name='pg_modules.networks_fastgan.Generator', cond=opts.cond, synthesis_kwargs=dnnlib.EasyDict(), mapping_kwargs=dnnlib.EasyDict())
+        c.G_kwargs = dnnlib.EasyDict(class_name='pg_modules.networks_fastgan.Generator', cond=opts.cond, synthesis_kwargs=dnnlib.EasyDict())
         c.G_kwargs.synthesis_kwargs.lite = (opts.cfg == 'fastgan_lite')
         c.G_opt_kwargs.lr = c.D_opt_kwargs.lr = 0.0002
         use_separable_discs = False
+        c.G_kwargs.synthesis_kwargs.is_transitional = is_transitional
 
     # Resume.
     if opts.resume is not None:
@@ -241,19 +255,8 @@ def main(**kwargs):
         c.cudnn_benchmark = False
 
     # Description string.
-    desc = f'{opts.cfg:s}-{dataset_name:s}-gpus{c.num_gpus:d}-batch{c.batch_size:d}'
+    desc = f'{opts.cfg:s}-{dataset_name:s}-{opts.fname}-gpus{c.num_gpus:d}-batch{c.batch_size:d}'
 
-    # added for transitional training
-    if opts.t_start_kimg is None:
-        opts.t_start_kimg = 0
-    if opts.t_end_kimg is None:
-        opts.t_end_kimg = 0
-    assert isinstance(opts.t_start_kimg, int)
-    assert isinstance(opts.t_end_kimg, int)
-    assert (opts.t_start_kimg >= 0 and opts.t_start_kimg <= opts.t_end_kimg)
-    c.t_start_kimg = opts.t_start_kimg
-    c.t_end_kimg = opts.t_end_kimg
-    is_transitional = opts.t_start_kimg < opts.t_end_kimg
     if opts.cond and is_transitional:
         desc += f'-trans:{opts.t_start_kimg}-{opts.t_end_kimg}'
 
@@ -289,8 +292,6 @@ def main(**kwargs):
 
     # added for transitional training
     c.D_kwargs.backbone_kwargs.is_transitional = is_transitional
-    c.G_kwargs.mapping_kwargs.is_transitional = is_transitional
-    c.G_kwargs.synthesis_kwargs.is_transitional = is_transitional
 
     # added for class adaptive augmentation
     c.cls_ada_aug = opts.cls_ada_aug
