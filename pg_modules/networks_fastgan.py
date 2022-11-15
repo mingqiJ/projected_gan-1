@@ -114,12 +114,12 @@ class FastganSynthesisCond(nn.Module):
 
         UpBlock = UpBlockSmallCond if lite else UpBlockBigCond
 
-        self.feat_8   = UpBlock(nfc[4], nfc[8], z_dim)
-        self.feat_16  = UpBlock(nfc[8], nfc[16], z_dim)
-        self.feat_32  = UpBlock(nfc[16], nfc[32], z_dim)
-        self.feat_64  = UpBlock(nfc[32], nfc[64], z_dim)
-        self.feat_128 = UpBlock(nfc[64], nfc[128], z_dim)
-        self.feat_256 = UpBlock(nfc[128], nfc[256], z_dim)
+        self.feat_8   = UpBlock(nfc[4], nfc[8], z_dim, is_transitional)
+        self.feat_16  = UpBlock(nfc[8], nfc[16], z_dim, is_transitional)
+        self.feat_32  = UpBlock(nfc[16], nfc[32], z_dim, is_transitional)
+        self.feat_64  = UpBlock(nfc[32], nfc[64], z_dim, is_transitional)
+        self.feat_128 = UpBlock(nfc[64], nfc[128], z_dim, is_transitional)
+        self.feat_256 = UpBlock(nfc[128], nfc[256], z_dim, is_transitional)
 
         self.se_64 = SEBlock(nfc[4], nfc[64])
         self.se_128 = SEBlock(nfc[8], nfc[128])
