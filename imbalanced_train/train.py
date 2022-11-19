@@ -46,7 +46,7 @@ parser.add_argument('--wd', '--weight-decay', default=1e-4, type=float, metavar=
 parser.add_argument('-p', '--print-freq', default=10, type=int, metavar='N', help='print frequency (default: 10)')
 parser.add_argument('--resume', default='', type=str, metavar='PATH', help='path to latest checkpoint (default: none)')
 parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true', help='evaluate model on validation set')
-parser.add_argument('--seed', default=None, type=int, help='seed for initializing training.')
+parser.add_argument('--seed', default=17, type=int, help='seed for initializing training.')
 parser.add_argument('--root_log', type=str, default='log')
 parser.add_argument('--root_model', type=str, default='./checkpoint')
 # adde by Saeed
@@ -63,13 +63,21 @@ best_acc1 = 0
 def main():
     args = parser.parse_args()
 
-    fname = os.path.basename(args.fname)
-    fname_syns = os.path.basename(args.fname_syns)
+    fname = os.path.basename(args.fname).replace('.', '_')
+    fname_syns = os.path.dirname(args.fname_syns).split('/')[-1]
+
+    if args.calc_CAS:
+        metric = "calc_CAS"
+    elif args.calc_ACC:
+        metric = "calc_ACC"
+    else:
+        metric = ""
+
+    embed = "add_embed" if args.add_embed else ""
 
     args.store_name = '_'.join([fname, fname_syns,
-                                args.arch, args.loss_type, args.train_rule,
-                                f"calc_CAS_{args.calc_CAS}", f"calc_ACC_{args.calc_ACC}",f"add_embed_{args.add_embed}",
-                                args.exp_str])
+                                args.arch, args.loss_type,
+                                metric, embed, args.exp_str])
 
     # only calculate one metric # todo make it generate both
     assert not (args.calc_CAS and args.calc_ACC)

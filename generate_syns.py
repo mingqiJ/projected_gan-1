@@ -100,7 +100,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--gan_path', type=str, required=True)
-    parser.add_argument('--desc', type=str, required=True)
+    parser.add_argument('--desc', type=str)
 
     parser.add_argument('--json_fname', type=str, default="syns.json")
     parser.add_argument('--dir', type=str, default="syns_data")
@@ -110,6 +110,9 @@ if __name__ == "__main__":
     parser.add_argument('--random_seed', type=int, default=17)
 
     args = parser.parse_args()
+    if not args.desc:
+        args.desc = os.path.dirname(args.gan_path).split('/')[-1]
+
     with torch.no_grad():
         gen_syns_data(
             gan_path=args.gan_path,
