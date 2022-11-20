@@ -140,9 +140,9 @@ def parse_comma_separated_list(s):
 @click.option('--t_start_kimg', help='start kimg for progressive conditioning',                 type=int, metavar='INT')
 @click.option('--t_end_kimg',   help='end kimg for progressive conditioning',                   type=int, metavar='INT')
 @click.option('--cls_ada_aug',  help='class balancing data augmentation',           type=bool,metavar='BOOL', default=False)
-@click.option('--mixup_val',    help='alpha in mixup data augmentation',          metavar='FLOAT', type=click.FloatRange(min=0, max=1), default=0)
+@click.option('--mixup_alpha',    help='alpha in mixup data augmentation',          metavar='FLOAT', type=click.FloatRange(min=0, max=1), default=0)
 @click.option('--weight_sampling', help='weight_sampling in the data loader',           type=bool, metavar='BOOL', default=False)
-@click.option('--weight_exp_val',  help='weight sampling exp',          metavar='FLOAT', type=click.FloatRange(min=0, max=1), default=0.35)
+@click.option('--weight_exp_val',  help='weight sampling exp',          metavar='FLOAT', type=click.FloatRange(min=0, max=1), default=0)
 
 # Optional features.
 @click.option('--cond',         help='Train conditional model', metavar='BOOL',                 type=bool, default=False, show_default=True)
@@ -204,6 +204,18 @@ def main(**kwargs):
     c.random_seed = c.training_set_kwargs.random_seed = opts.seed
     c.data_loader_kwargs.num_workers = opts.workers
 
+    # added for transitional training
+    if opts.t_start_kimg is None:
+        opts.t_start_kimg = 0
+    if opts.t_end_kimg is None:
+        opts.t_end_kimg = 0
+    assert isinstance(opts.t_start_kimg, int)
+    assert isinstance(opts.t_end_kimg, int)
+    assert (opts.t_start_kimg >= 0 and opts.t_start_kimg <= opts.t_end_kimg)
+    c.t_start_kimg = opts.t_start_kimg
+    c.t_end_kimg = opts.t_end_kimg
+    is_transitional = opts.t_start_kimg < opts.t_end_kimg
+
     # Sanity checks.
     if c.batch_size % c.num_gpus != 0:
         raise click.ClickException('--batch must be a multiple of --gpus')
@@ -218,12 +230,14 @@ def main(**kwargs):
         c.G_kwargs.class_name = 'pg_modules.networks_stylegan2.Generator'
         c.G_kwargs.fused_modconv_default = 'inference_only' # Speed up training by using regular convolutions instead of grouped convolutions.
         use_separable_discs = True
+        c.G_kwargs.mapping_kwargs.is_transitional = is_transitional
 
     elif opts.cfg in ['fastgan', 'fastgan_lite']:
         c.G_kwargs = dnnlib.EasyDict(class_name='pg_modules.networks_fastgan.Generator', cond=opts.cond, synthesis_kwargs=dnnlib.EasyDict())
         c.G_kwargs.synthesis_kwargs.lite = (opts.cfg == 'fastgan_lite')
         c.G_opt_kwargs.lr = c.D_opt_kwargs.lr = 0.0002
         use_separable_discs = False
+        c.G_kwargs.synthesis_kwargs.is_transitional = is_transitional
 
     # Resume.
     if opts.resume is not None:
@@ -241,25 +255,20 @@ def main(**kwargs):
         c.cudnn_benchmark = False
 
     # Description string.
-    desc = f'{opts.cfg:s}-{dataset_name:s}-gpus{c.num_gpus:d}-batch{c.batch_size:d}'
+    desc = f'{opts.cfg:s}-{dataset_name:s}-{opts.fname}-gpus{c.num_gpus:d}-batch{c.batch_size:d}'
 
-    # added for transitional training
-    if opts.t_start_kimg is None:
-        opts.t_start_kimg = 0
-    if opts.t_end_kimg is None:
-        opts.t_end_kimg = 0
-    assert isinstance(opts.t_start_kimg, int)
-    assert isinstance(opts.t_end_kimg, int)
-    assert (opts.t_start_kimg >= 0 and opts.t_start_kimg <= opts.t_end_kimg)
-    c.t_start_kimg = opts.t_start_kimg
-    c.t_end_kimg = opts.t_end_kimg
-    is_transitional = opts.t_start_kimg < opts.t_end_kimg
     if opts.cond and is_transitional:
         desc += f'-trans:{opts.t_start_kimg}-{opts.t_end_kimg}'
 
     # added for class adaptive augmentation
     if opts.cls_ada_aug:
         desc += f'--cls-ada-aug'
+
+    if opts.mixup_alpha > 0:
+        desc += f'-mixup-alpha{opts.mixup_alpha}'
+
+    if opts.weight_sampling:
+        desc += f'-wsampling-exp-{opts.weight_exp_val}'
 
     if opts.desc is not None:
         desc += f'-{opts.desc}'
@@ -269,7 +278,7 @@ def main(**kwargs):
     c.D_kwargs = dnnlib.EasyDict(
         class_name='pg_modules.discriminator.ProjectedDiscriminator',
         diffaug=True,
-        mixup=opts.mixup_val,
+        mixup_alpha=opts.mixup_alpha,
         interp224=(c.training_set_kwargs.resolution < 224),
         backbone_kwargs=dnnlib.EasyDict(),
     )
@@ -282,9 +291,7 @@ def main(**kwargs):
     c.D_kwargs.backbone_kwargs.cond = opts.cond
 
     # added for transitional training
-    if opts.cfg == 'stylegan2':
-        c.G_kwargs.mapping_kwargs.is_transitional = is_transitional
-        c.D_kwargs.backbone_kwargs.is_transitional = is_transitional
+    c.D_kwargs.backbone_kwargs.is_transitional = is_transitional
 
     # added for class adaptive augmentation
     c.cls_ada_aug = opts.cls_ada_aug

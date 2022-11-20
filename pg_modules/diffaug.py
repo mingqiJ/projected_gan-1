@@ -5,6 +5,7 @@
 import torch
 import torch.nn.functional as F
 from torch.autograd import Variable
+import numpy as np
 
 def DiffAugment(x, policy='', channels_first=True):
 
@@ -88,21 +89,21 @@ def rand_cutout(x, mask=None, ratio=0.2):
         return out
 
 
-def mix(x1, x2, alpha):
-    return alpha * x1 + (1.0 - alpha) * x2
+def mix(x1, x2, lam):
+    return lam * x1 + (1.0 - lam) * x2
 
 
-def mixup(x, c, m=0):
-    # if m == 0:
-    #     return x, c
-    b = x.size(0)
-    # assert b % 2 == 0
-    mid = int(b/2)
-    end = 2 * mid
-    x1, x2 = x[:mid], x[mid:end]
-    c1, c2 = c[:mid], c[mid:end]
-    alpha = Variable(torch.randn(mid, 1).uniform_(0, m)).to(x.device)
-    mix_x, mix_c = mix(x1, x2, alpha), mix(c1, c2, alpha)
+def mixup(x, c, alpha=0.0):
+    if alpha == 0:
+        return x, c
+
+    batch_size = x.size(0)
+    index = torch.randperm(batch_size).to(x.device)
+
+    lam = np.random.beta(alpha, alpha)
+    mix_x, mix_c = mix(x, x[index, ...], lam), mix(c, c[index, ...], lam)
+    # lam = torch.empty(batch_size, 1, 1, 1).uniform_(0, alpha).to(x.device)
+    # mix_x, mix_c = mix(x, x[index, ...], lam), mix(c, c[index, ...], lam[:, :, 0, 0])
     return mix_x, mix_c
 
 

@@ -128,7 +128,7 @@ def training_loop(
     t_end_kimg              = 0,
     cls_ada_aug             = False,
     weight_sampling         = False,
-    weight_exp_val          = 1.0,
+    weight_exp_val          = 0.0,
     # cls_ada_aug_interval    = 4,
     # cls_ada_aug_kimg        = 500
 ):
@@ -370,11 +370,11 @@ def training_loop(
         # log and update the transition value
         if training_set_kwargs.use_labels and t_start_kimg < t_end_kimg:
             training_stats.report0('Progress/D/transition', D.transition.cpu())
-            training_stats.report0('Progress/G/transition', G.mapping.transition.cpu())
+            training_stats.report0('Progress/G/transition', G.transition.cpu())
             if (cur_nimg // 1000) >= t_start_kimg:
                 m = 1 / (t_end_kimg - t_start_kimg + 1e-7)
-                G.mapping.transition = torch.clip(G.mapping.transition + m * (cur_nimg - old_nimg) / 1000, max=1.0)
-                D.transition = torch.clip(D.transition + m * (cur_nimg - old_nimg) / 1000, max=1.0)
+                lmbda = torch.clip(D.transition + m * (cur_nimg - old_nimg) / 1000, max=1.0)
+                G.transition = D.transition = lmbda
             old_nimg = cur_nimg
 
         # Perform maintenance tasks once per tick.
