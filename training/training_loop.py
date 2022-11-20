@@ -92,8 +92,9 @@ def save_image_grid(img, fname, drange, grid_size):
         PIL.Image.fromarray(img[:, :, 0], 'L').save(fname)
     if C == 3:
         PIL.Image.fromarray(img, 'RGB').save(fname)
-
+    return img  # added by authors
 #----------------------------------------------------------------------------
+
 
 def training_loop(
     run_dir                 = '.',      # Output directory.
@@ -126,9 +127,9 @@ def training_loop(
     restart_every           = -1,       # Time interval in seconds to exit code
     t_start_kimg            = 0,
     t_end_kimg              = 0,
-    cls_ada_aug             = False,
     weight_sampling         = False,
     weight_exp_val          = 0.0,
+    cls_ada_aug=False,
     # cls_ada_aug_interval    = 4,
     # cls_ada_aug_kimg        = 500
 ):
@@ -272,6 +273,8 @@ def training_loop(
     stats_metrics = dict()
     stats_jsonl = None
     stats_tfevents = None
+    stats_wandb = None    # Added by the authors
+
     if rank == 0:
         stats_jsonl = open(os.path.join(run_dir, 'stats.jsonl'), 'wt')
         try:
@@ -279,6 +282,15 @@ def training_loop(
             stats_tfevents = tensorboard.SummaryWriter(run_dir)
         except ImportError as err:
             print('Skipping tfevents export:', err)
+
+        # wandb initialization (Added by the authors)
+        try:
+            import wandb
+            if rank == 0:
+                wandb.init(project="LT-GAN", name=f"{run_dir.split('/')[-1]}", dir=run_dir)
+            stats_wandb = True
+        except ImportError as err:
+            print('Skipping wandb export:', err)
 
     # Train.
     if rank == 0:
@@ -422,8 +434,11 @@ def training_loop(
         # Save image snapshot.
         if (rank == 0) and (image_snapshot_ticks is not None) and (done or cur_tick % image_snapshot_ticks == 0):
             images = torch.cat([G_ema(z=z, c=c, noise_mode='const').cpu() for z, c in zip(grid_z, grid_c)]).numpy()
-            save_image_grid(images, os.path.join(run_dir, f'fakes{cur_nimg//1000:06d}.png'), drange=[-1,1], grid_size=grid_size)
-
+            # modified by authors
+            image_snapshot = save_image_grid(images, os.path.join(run_dir, f'fakes{cur_nimg//1000:06d}.png'), drange=[-1,1], grid_size=grid_size)
+            if stats_wandb:  # Added by the authors
+                wandb.log({'gen_img': [wandb.Image(image_snapshot, caption="Generated Images")]},
+                          step=cur_nimg // 1000)  # Added by the authors
         # Save network snapshot.
         snapshot_pkl = None
         snapshot_data = None
@@ -464,6 +479,8 @@ def training_loop(
                 if rank == 0:
                     metric_main.report_metric(result_dict, run_dir=run_dir, snapshot_pkl=snapshot_pkl)
                 stats_metrics.update(result_dict.results)
+            if rank == 0 and stats_wandb:  # Added by the authors
+                wandb.log(stats_metrics, step=cur_nimg // 1000)  # Added by the authors
 
             # save best fid ckpt
             # added best recall
@@ -517,6 +534,8 @@ def training_loop(
             for name, value in stats_metrics.items():
                 stats_tfevents.add_scalar(f'Metrics/{name}', value, global_step=global_step, walltime=walltime)
             stats_tfevents.flush()
+        if rank == 0 and stats_wandb:  # Added by the authors
+            wandb.log(stats_dict, step=cur_nimg // 1000)  # Added by the authors
         if progress_fn is not None:
             progress_fn(cur_nimg // 1000, total_kimg)
 
@@ -532,5 +551,4 @@ def training_loop(
     if rank == 0:
         print()
         print('Exiting...')
-
 #----------------------------------------------------------------------------

@@ -127,6 +127,7 @@ dependencies:
   - typing_extensions=3.10.0.2=pyh06a4308_0
   - tzdata=2021e=hda174b7_0
   - urllib3=1.26.7=pyhd3eb1b0_0
+  - wandb=0.13.5=pyhd8ed1ab_0
   - werkzeug=2.0.1=pyhd8ed1ab_0
   - wheel=0.37.0=pyhd3eb1b0_1
   - xz=5.2.5=h7b6447c_0
