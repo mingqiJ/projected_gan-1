@@ -295,7 +295,7 @@ def training_loop(
         try:
             import wandb
             if rank == 0:
-                wandb.init(project="LT-GAN", name=f"{run_dir.split('/')[-1]}", dir=run_dir)
+                wandb.init(project="LT-GAN", name=f"{run_dir.split('/')[-1]}", dir=run_dir, entity="ltgan")
             stats_wandb = True
         except ImportError as err:
             print('Skipping wandb export:', err)
