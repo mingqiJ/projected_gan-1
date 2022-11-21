@@ -7,6 +7,7 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 import numpy as np
 
+
 def DiffAugment(x, policy='', channels_first=True):
 
     if policy:
@@ -25,7 +26,8 @@ def rand_brightness(x, mask=None):
     out = x + (torch.rand(x.size(0), 1, 1, 1, dtype=x.dtype, device=x.device) - 0.5)
     if mask:
         x[mask] = out[mask]
-    return x
+        return x
+    return out
 
 
 def rand_saturation(x, mask=None):
@@ -34,8 +36,7 @@ def rand_saturation(x, mask=None):
     if mask:
         x[mask] = out[mask]
         return x
-    else:
-        return out
+    return out
 
 
 def rand_contrast(x, mask=None):
@@ -44,8 +45,7 @@ def rand_contrast(x, mask=None):
     if mask:
         x[mask] = out[mask]
         return x
-    else:
-        return out
+    return out
 
 
 def rand_translation(x, mask=None, ratio=0.125):
@@ -64,8 +64,7 @@ def rand_translation(x, mask=None, ratio=0.125):
     if mask:
         x[mask] = out[mask]
         return x
-    else:
-        return out
+    return out
 
 
 def rand_cutout(x, mask=None, ratio=0.2):
@@ -85,8 +84,7 @@ def rand_cutout(x, mask=None, ratio=0.2):
     if mask:
         x[mask] = out[mask]
         return x
-    else:
-        return out
+    return out
 
 
 def mix(x1, x2, lam):
