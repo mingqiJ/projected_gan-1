@@ -8,14 +8,15 @@ from torch.autograd import Variable
 import numpy as np
 
 
-def DiffAugment(x, policy='', channels_first=True):
-
+def DiffAugment(x, policy='', p=None, c=None, channels_first=True):
+    probs = torch.matmul(c, p)
     if policy:
         if not channels_first:
             x = x.permute(0, 3, 1, 2)
         for pol in policy.split(','):
             for f in AUGMENT_FNS[pol]:
-                x = f(x)
+                mask = torch.rand(probs.size(0), dtype=probs.dtype, device=probs.device) <= probs
+                x = f(x, mask)
         if not channels_first:
             x = x.permute(0, 2, 3, 1)
         x = x.contiguous()
@@ -24,7 +25,7 @@ def DiffAugment(x, policy='', channels_first=True):
 
 def rand_brightness(x, mask=None):
     out = x + (torch.rand(x.size(0), 1, 1, 1, dtype=x.dtype, device=x.device) - 0.5)
-    if mask:
+    if mask is not None:
         x[mask] = out[mask]
         return x
     return out
@@ -33,7 +34,7 @@ def rand_brightness(x, mask=None):
 def rand_saturation(x, mask=None):
     x_mean = x.mean(dim=1, keepdim=True)
     out = (x - x_mean) * (torch.rand(x.size(0), 1, 1, 1, dtype=x.dtype, device=x.device) * 2) + x_mean
-    if mask:
+    if mask is not None:
         x[mask] = out[mask]
         return x
     return out
@@ -42,7 +43,7 @@ def rand_saturation(x, mask=None):
 def rand_contrast(x, mask=None):
     x_mean = x.mean(dim=[1, 2, 3], keepdim=True)
     out = (x - x_mean) * (torch.rand(x.size(0), 1, 1, 1, dtype=x.dtype, device=x.device) + 0.5) + x_mean
-    if mask:
+    if mask is not None:
         x[mask] = out[mask]
         return x
     return out
@@ -61,7 +62,7 @@ def rand_translation(x, mask=None, ratio=0.125):
     grid_y = torch.clamp(grid_y + translation_y + 1, 0, x.size(3) + 1)
     x_pad = F.pad(x, [1, 1, 1, 1, 0, 0, 0, 0])
     out = x_pad.permute(0, 2, 3, 1).contiguous()[grid_batch, grid_x, grid_y].permute(0, 3, 1, 2)
-    if mask:
+    if mask is not None:
         x[mask] = out[mask]
         return x
     return out
@@ -81,7 +82,7 @@ def rand_cutout(x, mask=None, ratio=0.2):
     mask_ = torch.ones(x.size(0), x.size(2), x.size(3), dtype=x.dtype, device=x.device)
     mask_[grid_batch, grid_x, grid_y] = 0
     out = x * mask_.unsqueeze(1)
-    if mask:
+    if mask is not None:
         x[mask] = out[mask]
         return x
     return out

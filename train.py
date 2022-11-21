@@ -140,6 +140,7 @@ def parse_comma_separated_list(s):
 @click.option('--t_start_kimg', help='start kimg for progressive conditioning',                 type=int, metavar='INT')
 @click.option('--t_end_kimg',   help='end kimg for progressive conditioning',                   type=int, metavar='INT')
 @click.option('--cada_aug',  help='class balancing data augmentation',           type=bool,metavar='BOOL', default=False)
+@click.option('--cada_exp_val',  help='class balancing data exp',           metavar='FLOAT', type=click.FloatRange(min=0, max=1), default=0.35)
 @click.option('--mixup_alpha',    help='alpha in mixup data augmentation',          metavar='FLOAT', type=click.FloatRange(min=0, max=1), default=0)
 @click.option('--weight_sampling', help='weight_sampling in the data loader',           type=bool, metavar='BOOL', default=False)
 @click.option('--weight_exp_val',  help='weight sampling exp',          metavar='FLOAT', type=click.FloatRange(min=0, max=1), default=0)
@@ -295,6 +296,7 @@ def main(**kwargs):
 
     # added for class adaptive augmentation
     c.cada_aug = opts.cada_aug
+    c.cada_exp_val = opts.cada_exp_val
 
     # added for class weighted sampling
     c.weight_sampling = opts.weight_sampling

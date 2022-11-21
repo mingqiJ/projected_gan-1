@@ -130,6 +130,7 @@ def training_loop(
     weight_sampling         = False,
     weight_exp_val          = 0.0,
     cada_aug                = False,
+    cada_exp_val        = 0.35,
 ):
     # Initialize.
     start_time = time.time()
@@ -155,7 +156,7 @@ def training_loop(
 
     training_set = dnnlib.util.construct_class_by_name(**training_set_kwargs) # subclass of training.dataset.Dataset
 
-    ## modified by Saeed
+    # modified by Saeed
     # TODO unconditional set up
     if weight_sampling:
         # set the iterator infinitely large number and wrap it with dist sampler
@@ -173,10 +174,6 @@ def training_loop(
         weights = training_set.get_exp_weights(weight_exp_val)
         class_weights *= weights
 
-    # todo automatic exp value selection using imf intervals.
-    if cada_aug:
-        cada_p = training_set.get_exp_weights(0.5)
-
     if rank == 0:
         print()
         print('Num images: ', len(training_set))
@@ -193,14 +190,12 @@ def training_loop(
     D = dnnlib.util.construct_class_by_name(**D_kwargs, **common_kwargs).train().requires_grad_(False).to(device) # subclass of torch.nn.Module
     G_ema = copy.deepcopy(G).eval()
 
-    # # added for class adaptive augmentation
-    # if common_kwargs['c_dim'] > 0:
-    #     if cada_aug:
-    #         D.cada_p.copy_(training_set.get_cls_ada_aug_p().type('torch.DoubleTensor').to(device))
-    #         D.cada_p = training_set.get_cls_ada_aug_p().type('torch.DoubleTensor').to(device)
-    #     else:
-    #         D.cada_p.copy_(torch.ones(common_kwargs['c_dim']).type('torch.DoubleTensor').to(device))
-    #         D.cada_p = None
+    # added for class adaptive augmentation
+    # todo automatic exp value selection using imf intervals.
+    # todo adaptive cada
+    if common_kwargs['c_dim'] > 0 and cada_aug:
+        cada_p = training_set.get_exp_weights(cada_exp_val)
+        D.cada_p.copy_(cada_p.to(device))
 
     # Check for existing checkpoint
     ckpt_pkl = None
