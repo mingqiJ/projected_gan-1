@@ -137,6 +137,38 @@ class Dataset(torch.utils.data.Dataset):
         d.raw_label = self._get_raw_labels()[d.raw_idx].copy()
         return d
 
+    ## added by Saeed
+    def get_class_counts(self):
+        labels = self._get_raw_labels()
+        class_counts = []
+        for i in range(len(set(labels))):
+            count = len(np.where(labels == i)[0])
+            if self._xflip[-1] == 1:
+                count *= 2
+            class_counts.append(count)
+        return class_counts
+
+    ## added by Saeed
+    def get_exp_weights(self, exp_val=1.0):
+        class_counts = torch.tensor(self.get_class_counts()).type('torch.DoubleTensor')
+        class_counts = class_counts ** exp_val
+        weights = 1.0 / class_counts
+        # weights /= weights.max()
+        return weights
+
+    ## added by Saeed
+    def get_sample_exp_weights(self, exp_val=1.0):
+        weights = self.get_exp_weights(exp_val)
+        raw_labels = self._get_raw_labels()
+        samples_weight = np.array([weights[raw_labels[idx]] for idx in self._raw_idx])
+        samples_weight = torch.from_numpy(samples_weight).type('torch.DoubleTensor')
+        return samples_weight
+
+    @property
+    def imf(self):
+        class_counts = self.get_class_counts()
+        return class_counts[0]/class_counts[-1]
+
     @property
     def name(self):
         return self._name
@@ -283,49 +315,3 @@ class ImageFolderDataset(Dataset):
         labels = np.array(labels)
         labels = labels.astype({1: np.int64, 2: np.float32}[labels.ndim])
         return labels
-
-    ## added by Saeed
-    def get_class_counts(self):
-        labels = self._get_raw_labels()
-        class_counts = []
-        for i in range(len(set(labels))):
-            count = len(np.where(labels == i)[0])
-            if self._xflip[-1] == 1:
-                count *= 2
-            class_counts.append(count)
-        return class_counts
-
-    def get_exp_weights(self, exp_val=1.0):
-        class_counts = torch.tensor(self.get_class_counts()).type('torch.DoubleTensor')
-        class_counts = class_counts ** exp_val
-        weights = 1.0 / class_counts
-        # weights /= weights.max()
-        return weights
-
-    ## added by Saeed
-    def get_sample_exp_weights(self, exp_val=1.0):
-        weights = self.get_exp_weights(exp_val)
-        raw_labels = self._get_raw_labels()
-        samples_weight = np.array([weights[raw_labels[idx]] for idx in self._raw_idx])
-        samples_weight = torch.from_numpy(samples_weight).type('torch.DoubleTensor')
-        return samples_weight
-
-    ## added by Saeed
-    def get_per_class_weights(self):
-        class_counts = np.array(self.get_class_counts(), dtype="float32")
-        class_counts /= class_counts.max()
-        raw_labels = self._get_raw_labels()
-        class_weight = np.array([class_counts[raw_labels[idx]] for idx in self._raw_idx])
-        class_weight = torch.from_numpy(class_weight).type('torch.DoubleTensor')
-        return class_weight
-
-    ## added by Saeed
-    def get_cls_ada_aug_p(self, exp_val=1.0):
-        eps = 1e-12
-        class_counts = self.get_class_counts()
-        class_counts = np.array(class_counts) ** exp_val
-        p = 1.0 / class_counts
-        p /= (p.max() + eps)
-        return torch.from_numpy(p)
-
-

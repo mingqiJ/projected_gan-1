@@ -183,6 +183,7 @@ class ProjectedDiscriminator(torch.nn.Module):
         )
         # self.transition will be access when calculating loss.
         self.register_buffer('transition', torch.zeros([]))  # Added by the authors
+        self.register_buffer('cada_p', torch.ones(c_dim))  # Added by the authors
         assert 0 <= mixup_alpha <= 1
         self.mixup_alpha = mixup_alpha
 
@@ -197,6 +198,7 @@ class ProjectedDiscriminator(torch.nn.Module):
     def forward(self, x, c):
         if self.diffaug:
             x = DiffAugment(x, policy='color,translation,cutout')
+            # x = DiffAugment(x, policy='color,translation,cutout', p=self.cada_p, c=c)
 
         if self.mixup_alpha > 0:
             x, c = mixup(x, c, alpha=self.mixup_alpha)

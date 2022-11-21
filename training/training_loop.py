@@ -129,9 +129,7 @@ def training_loop(
     t_end_kimg              = 0,
     weight_sampling         = False,
     weight_exp_val          = 0.0,
-    cls_ada_aug=False,
-    # cls_ada_aug_interval    = 4,
-    # cls_ada_aug_kimg        = 500
+    cada_aug                = False,
 ):
     # Initialize.
     start_time = time.time()
@@ -161,6 +159,7 @@ def training_loop(
     # TODO unconditional set up
     if weight_sampling:
         # set the iterator infinitely large number and wrap it with dist sampler
+        # todo improve: sample the class with the weight, then sample the sample
         samples_weight = training_set.get_sample_exp_weights(weight_exp_val)
         weighted_sampler = WeightedRandomSampler(samples_weight, num_samples=int(total_kimg * 1000), replacement=True)
         training_set_sampler = DistributedSamplerWrapper(weighted_sampler, num_replicas=num_gpus, rank=rank)
@@ -174,9 +173,14 @@ def training_loop(
         weights = training_set.get_exp_weights(weight_exp_val)
         class_weights *= weights
 
+    # todo automatic exp value selection using imf intervals.
+    if cada_aug:
+        cada_p = training_set.get_exp_weights(0.5)
+
     if rank == 0:
         print()
         print('Num images: ', len(training_set))
+        print('Imbalance Factor: ', training_set.imf)
         print('Image shape:', training_set.image_shape)
         print('Label shape:', training_set.label_shape)
         print()
@@ -188,6 +192,15 @@ def training_loop(
     G = dnnlib.util.construct_class_by_name(**G_kwargs, **common_kwargs).train().requires_grad_(False).to(device) # subclass of torch.nn.Module
     D = dnnlib.util.construct_class_by_name(**D_kwargs, **common_kwargs).train().requires_grad_(False).to(device) # subclass of torch.nn.Module
     G_ema = copy.deepcopy(G).eval()
+
+    # # added for class adaptive augmentation
+    # if common_kwargs['c_dim'] > 0:
+    #     if cada_aug:
+    #         D.cada_p.copy_(training_set.get_cls_ada_aug_p().type('torch.DoubleTensor').to(device))
+    #         D.cada_p = training_set.get_cls_ada_aug_p().type('torch.DoubleTensor').to(device)
+    #     else:
+    #         D.cada_p.copy_(torch.ones(common_kwargs['c_dim']).type('torch.DoubleTensor').to(device))
+    #         D.cada_p = None
 
     # Check for existing checkpoint
     ckpt_pkl = None
