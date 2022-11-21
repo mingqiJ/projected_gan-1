@@ -10,7 +10,7 @@ from pg_modules.diffaug import DiffAugment, mixup
 
 
 class SingleDisc(nn.Module):
-    def __init__(self, nc=None, ndf=None, start_sz=256, end_sz=8, head=None, separable=False, patch=False, is_transitional=False):
+    def __init__(self, nc=None, ndf=None, start_sz=256, end_sz=8, head=None, separable=False, patch=False, c_dim=0, is_transitional=False):
         super().__init__()
         channel_dict = {4: 512, 8: 512, 16: 256, 32: 128, 64: 64, 128: 64,
                         256: 32, 512: 16, 1024: 8}
@@ -129,6 +129,7 @@ class MultiScaleD(nn.Module):
         num_discs=1,
         proj_type=2,  # 0 = no projection, 1 = cross channel mixing, 2 = cross scale mixing
         cond=0,
+        c_dim=0,
         separable=False,
         patch=False,
         is_transitional=False,
@@ -146,7 +147,7 @@ class MultiScaleD(nn.Module):
         mini_discs = []
         for i, (cin, res) in enumerate(zip(self.disc_in_channels, self.disc_in_res)):
             start_sz = res if not patch else 16
-            mini_discs += [str(i), Disc(nc=cin, start_sz=start_sz, end_sz=8, separable=separable, patch=patch, is_transitional=is_transitional)],
+            mini_discs += [str(i), Disc(nc=cin, start_sz=start_sz, end_sz=8, separable=separable, patch=patch, c_dim=c_dim, is_transitional=is_transitional)],
         self.mini_discs = nn.ModuleDict(mini_discs)
 
     def forward(self, features, c):
@@ -164,7 +165,7 @@ class ProjectedDiscriminator(torch.nn.Module):
         diffaug=True,
         mixup_alpha = 0,
         interp224=True,
-        c_dim=None,
+        c_dim=0,
         backbone_kwargs={},
         **kwargs
     ):
@@ -172,10 +173,12 @@ class ProjectedDiscriminator(torch.nn.Module):
         self.diffaug = diffaug
         self.mixup = mixup
         self.interp224 = interp224
+
         self.feature_network = F_RandomProj(**backbone_kwargs)
         self.discriminator = MultiScaleD(
             channels=self.feature_network.CHANNELS,
             resolutions=self.feature_network.RESOLUTIONS,
+            c_dim=c_dim,
             **backbone_kwargs,
         )
         # self.transition will be access when calculating loss.
