@@ -16,6 +16,7 @@ from dataset.imbalance_cifar import ImbalanceCIFAR10, ImbalanceCIFAR100
 from dataset.imbalance_cifar_from_json import ImbalanceCIFAR10JSON
 from dataset.imbalance_svhn import ImbalanceSVHN
 from losses import LDAMLoss, FocalLoss
+import os
 
 model_names = sorted(name for name in models.__dict__
                      if name.islower() and not name.startswith("__")
@@ -78,6 +79,10 @@ def main():
     args.store_name = '_'.join([fname, fname_syns,
                                 args.arch, args.loss_type,
                                 metric, embed, args.exp_str])
+
+    if args.store_name in os.listdir(args.root_log):
+        print(f"Already trained at {args.store_name}, exiting...")
+        return
 
     # only calculate one metric # todo make it generate both
     assert not (args.calc_CAS and args.calc_ACC)

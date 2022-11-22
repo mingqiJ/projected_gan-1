@@ -99,7 +99,7 @@ def gen_syns_data(gan_path,
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--gan_path', type=str, required=True)
+    parser.add_argument('--gan_path', type=str)
     parser.add_argument('--desc', type=str)
 
     parser.add_argument('--json_fname', type=str, default="syns.json")
@@ -110,18 +110,45 @@ if __name__ == "__main__":
     parser.add_argument('--random_seed', type=int, default=17)
 
     args = parser.parse_args()
-    if not args.desc:
-        args.desc = os.path.dirname(args.gan_path).split('/')[-1]
 
     with torch.no_grad():
-        gen_syns_data(
-            gan_path=args.gan_path,
-            dir=args.dir,
-            json_fname=args.json_fname,
-            desc=args.desc,
-            imgs_per_cls=args.imgs_per_cls,
-            batch_size=args.batch_size,
-            truncation_psi=args.truncation_psi,
-            random_seed=args.random_seed,
-            noise_mode="const",
-        )
+
+        if args.gan_path:
+            if args.desc is None:
+                args.desc = os.path.dirname(args.gan_path).split('/')[-1]
+            gen_syns_data(
+                gan_path=args.gan_path,
+                dir=args.dir,
+                json_fname=args.json_fname,
+                desc=args.desc,
+                imgs_per_cls=args.imgs_per_cls,
+                batch_size=args.batch_size,
+                truncation_psi=args.truncation_psi,
+                random_seed=args.random_seed,
+                noise_mode="const",
+            )
+
+        else:
+            snap_dir = "./snaps"
+            synthesized_dirs = [dir for dir in os.listdir(args.dir) if os.path.isdir(os.path.join(args.dir, dir))]
+            to_be_synthesized = [os.path.join(snap_dir, dir) for dir in os.listdir(snap_dir) if os.path.isdir(os.path.join(snap_dir, dir)) and dir not in synthesized_dirs]
+
+            for directory in to_be_synthesized:
+                pkl_files = [os.path.join(directory, pkl) for pkl in os.listdir(directory) if pkl.endswith(".pkl")]
+                for i, pkl in enumerate(pkl_files):
+                    args.gan_path = pkl
+                    args.desc = os.path.dirname(pkl).split('/')[-1]
+                    if i > 0:
+                        args.desc += f"_{i + 1}"
+                    print(f"Synthesizing Images {args.desc} ...")
+                    gen_syns_data(
+                        gan_path=args.gan_path,
+                        dir=args.dir,
+                        json_fname=args.json_fname,
+                        desc=args.desc,
+                        imgs_per_cls=args.imgs_per_cls,
+                        batch_size=args.batch_size,
+                        truncation_psi=args.truncation_psi,
+                        random_seed=args.random_seed,
+                        noise_mode="const",
+                    )
