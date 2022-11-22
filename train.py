@@ -263,10 +263,10 @@ def main(**kwargs):
 
     # added for class adaptive augmentation
     if opts.cada_aug:
-        desc += f'--cada-aug'
+        desc += f'--cada-aug-exp-{opts.cada_exp_val}'
 
     if opts.mixup_alpha > 0:
-        desc += f'-mixup-alpha{opts.mixup_alpha}'
+        desc += f'-mixup-alpha-{opts.mixup_alpha}'
 
     if opts.weight_sampling:
         desc += f'-wsampling-exp-{opts.weight_exp_val}'

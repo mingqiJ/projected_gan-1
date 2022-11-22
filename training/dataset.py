@@ -153,7 +153,7 @@ class Dataset(torch.utils.data.Dataset):
         class_counts = torch.tensor(self.get_class_counts()).type('torch.DoubleTensor')
         class_counts = class_counts ** exp_val
         weights = 1.0 / class_counts
-        # weights /= weights.max()
+        weights /= weights.max()
         return weights
 
     ## added by Saeed
